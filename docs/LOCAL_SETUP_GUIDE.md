@@ -22,6 +22,9 @@ The Zscaler certificate is already included in the repository.
 1. Download from [podman-desktop.io](https://podman-desktop.io) or install from **Iru Self Service**
 2. Install and launch it
 3. When prompted, initialize the Podman machine and wait for it to start (green "Running" status)
+4. Open Podman Desktop **Settings** and enable:
+   - **Autostart Podman engine** — so the machine starts automatically when Podman Desktop opens
+   - **Start Podman Desktop on login** (if available) — so it's always ready after a restart
 
 > **If Podman Desktop gets stuck on "Podman Machine is starting":** Close it completely, open Terminal (macOS) or PowerShell (Windows), run `podman machine start`, then reopen Podman Desktop.
 
