@@ -35,6 +35,12 @@
           "sourcemap": true,
           "outExtension": {
             ".js": ".js"
+          },
+          "banner": {
+            "js": "const import_meta_url = typeof document === 'undefined' ? require('url').pathToFileURL(__filename).href : undefined;"
+          },
+          "define": {
+            "import.meta.url": "import_meta_url"
           }
         }
       },
@@ -55,6 +61,12 @@
             "sourcemap": true,
             "outExtension": {
               ".js": ".js"
+            },
+            "banner": {
+              "js": "const import_meta_url = typeof document === 'undefined' ? require('url').pathToFileURL(__filename).href : undefined;"
+            },
+            "define": {
+              "import.meta.url": "import_meta_url"
             }
           },
           "fileReplacements": [
