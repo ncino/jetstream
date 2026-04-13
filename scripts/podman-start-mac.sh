@@ -64,8 +64,16 @@ echo -e "  ${GREEN}App URL:${NC}    http://localhost:3333/app"
 echo -e "  ${GREEN}Email:${NC}      test@example.com"
 echo -e "  ${GREEN}Password:${NC}   EXAMPLE_123!"
 echo ""
-echo -e "  Press ${YELLOW}Ctrl+C${NC} to stop."
+echo -e "  You can safely close this terminal window."
+echo -e "  Jetstream will keep running in the background."
+echo ""
+echo -e "  To stop Jetstream later, open Terminal and run:"
+echo -e "    cd ~/Documents/jetstream && podman compose down"
 echo ""
 
 cd "$PROJECT_DIR"
-podman compose up
+podman compose up -d
+
+echo ""
+echo -e "  ${GREEN}Jetstream is running!${NC} Open http://localhost:3333/app"
+echo ""

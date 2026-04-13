@@ -109,10 +109,10 @@ Then open **http://localhost:3333/app**.
 
 ### Stopping Jetstream
 
-Press **Ctrl+C** in the terminal where Jetstream is running.
+Jetstream runs in the background — you can close the terminal after starting it. To stop it:
 
-Or from another terminal:
 ```bash
+cd ~/Documents/jetstream
 podman compose down
 ```
 

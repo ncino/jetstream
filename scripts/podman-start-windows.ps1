@@ -72,8 +72,16 @@ Write-Host "  App URL:    http://localhost:3333/app" -ForegroundColor Green
 Write-Host "  Email:      test@example.com" -ForegroundColor Green
 Write-Host "  Password:   EXAMPLE_123!" -ForegroundColor Green
 Write-Host ""
-Write-Host "  Press Ctrl+C to stop." -ForegroundColor Yellow
+Write-Host "  You can safely close this terminal window." -ForegroundColor Green
+Write-Host "  Jetstream will keep running in the background." -ForegroundColor Green
+Write-Host ""
+Write-Host "  To stop Jetstream later, open PowerShell and run:"
+Write-Host "    cd `$HOME\Documents\jetstream; podman compose down"
 Write-Host ""
 
 Set-Location $ProjectDir
-& podman compose up
+& podman compose up -d
+
+Write-Host ""
+Write-Host "  Jetstream is running! Open http://localhost:3333/app" -ForegroundColor Green
+Write-Host ""
