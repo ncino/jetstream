@@ -19,7 +19,7 @@ The Zscaler certificate is already included in the repository.
 
 ### Step 1: Install Podman Desktop
 
-1. Download from [podman-desktop.io](https://podman-desktop.io)
+1. Download from [podman-desktop.io](https://podman-desktop.io) or install from **Iru Self Service**
 2. Install and launch it
 3. When prompted, initialize the Podman machine and wait for it to start (green "Running" status)
 
