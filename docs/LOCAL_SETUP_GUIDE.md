@@ -199,3 +199,7 @@ podman compose up
 | Login email | test@example.com |
 | Login password | EXAMPLE_123! |
 | Salesforce credentials | Shared 1Password vault |
+
+---
+
+For questions or help with setup, contact **Sriganesh Gopal**.

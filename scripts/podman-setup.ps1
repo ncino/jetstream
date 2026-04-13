@@ -15,6 +15,8 @@
     Prerequisites:
       - Podman Desktop installed (https://podman-desktop.io)
       - ZscalerRoot-FullBundle.pem in the project root directory
+      - Salesforce OAuth credentials from the shared 1Password vault
+        (entry: "Jetstream Local Credentials")
 
 .EXAMPLE
     .\scripts\podman-setup.ps1
@@ -43,8 +45,8 @@ Write-Host ""
 # ------------------------------------------------------------------
 Write-Info "Step 1/7: Checking prerequisites..."
 
-$podmanPath = Get-Command podman -ErrorAction SilentlyContinue
-if (-not $podmanPath) {
+$podmanCmd = Get-Command podman -ErrorAction SilentlyContinue
+if (-not $podmanCmd) {
     Write-Err @"
 Podman is not installed.
 
@@ -54,17 +56,17 @@ Podman is not installed.
   4. Re-run this script
 "@
 }
-$podmanVersion = podman --version 2>&1
+$podmanVersion = & podman --version 2>&1
 Write-Info "  Podman found: $podmanVersion"
 
 if (-not (Test-Path $CertFile)) {
     Write-Err @"
 Zscaler certificate not found.
 
-  Please obtain ZscalerRoot-FullBundle.pem from your IT team and place it in:
-    $ProjectDir
+  The file ZscalerRoot-FullBundle.pem should be in the project root.
+  Run 'git pull' to make sure you have the latest code, or obtain it from IT.
 
-  Then re-run this script.
+  Expected location: $CertFile
 "@
 }
 Write-Info "  Zscaler certificate found"
@@ -74,32 +76,38 @@ Write-Info "  Zscaler certificate found"
 # ------------------------------------------------------------------
 Write-Info "Step 2/7: Configuring Podman machine..."
 
-$machineInfo = $null
+$machineState = "not_found"
+$currentMemory = 0
 try {
-    $machineInfo = podman machine inspect 2>&1 | ConvertFrom-Json
+    $inspectOutput = & podman machine inspect 2>&1
+    # podman machine inspect may return an array on some versions
+    $machineInfo = $inspectOutput | ConvertFrom-Json
+    if ($machineInfo -is [array]) {
+        $machineInfo = $machineInfo[0]
+    }
     $machineState = $machineInfo.State
+    $currentMemory = $machineInfo.Resources.Memory
 } catch {
     $machineState = "not_found"
 }
 
 if ($machineState -eq "not_found") {
     Write-Info "  Initializing Podman machine with ${PodmanMemory}MB memory..."
-    podman machine init --memory $PodmanMemory
-    podman machine start
+    & podman machine init --memory $PodmanMemory
+    & podman machine start
 } elseif ($machineState -eq "running") {
-    $currentMemory = $machineInfo.Resources.Memory
     if ($currentMemory -lt $PodmanMemory) {
         Write-Info "  Increasing Podman machine memory to ${PodmanMemory}MB..."
-        podman machine stop
-        podman machine set --memory $PodmanMemory
-        podman machine start
+        & podman machine stop
+        & podman machine set --memory $PodmanMemory
+        & podman machine start
     } else {
         Write-Info "  Podman machine memory OK (${currentMemory}MB)"
     }
 } else {
     Write-Info "  Starting Podman machine..."
-    podman machine set --memory $PodmanMemory 2>$null
-    podman machine start
+    & podman machine set --memory $PodmanMemory 2>$null
+    & podman machine start
 }
 
 # ------------------------------------------------------------------
@@ -107,8 +115,9 @@ if ($machineState -eq "not_found") {
 # ------------------------------------------------------------------
 Write-Info "Step 3/7: Installing Zscaler certificate..."
 
-Get-Content $CertFile | podman machine ssh sudo tee /etc/pki/ca-trust/source/anchors/ZscalerRoot-FullBundle.pem > $null 2>&1
-podman machine ssh sudo update-ca-trust 2>&1 > $null
+# Use Get-Content -Raw to read the cert as a single string and pipe it in
+Get-Content -Raw $CertFile | & podman machine ssh "sudo tee /etc/pki/ca-trust/source/anchors/ZscalerRoot-FullBundle.pem" > $null 2>&1
+& podman machine ssh "sudo update-ca-trust" 2>&1 > $null
 
 Write-Info "  Certificate installed"
 
@@ -117,15 +126,15 @@ Write-Info "  Certificate installed"
 # ------------------------------------------------------------------
 Write-Info "Step 4/7: Checking network connectivity..."
 
-$dnsResult = podman machine ssh "nslookup github.com > /dev/null 2>&1 && echo yes || echo no" 2>&1
-$dnsOk = ($dnsResult -match "yes")
+$dnsResult = & podman machine ssh "nslookup github.com > /dev/null 2>&1 && echo yes || echo no" 2>&1
+$dnsOk = "$dnsResult" -match "yes"
 
 if (-not $dnsOk) {
     Write-Warn "  DNS not working, adding fallback resolver..."
-    podman machine ssh "echo 'nameserver 8.8.8.8' | sudo tee -a /etc/resolv.conf" > $null 2>&1
+    & podman machine ssh "echo 'nameserver 8.8.8.8' | sudo tee -a /etc/resolv.conf" > $null 2>&1
 
-    $dnsResult2 = podman machine ssh "nslookup github.com > /dev/null 2>&1 && echo yes || echo no" 2>&1
-    if (-not ($dnsResult2 -match "yes")) {
+    $dnsResult2 = & podman machine ssh "nslookup github.com > /dev/null 2>&1 && echo yes || echo no" 2>&1
+    if (-not ("$dnsResult2" -match "yes")) {
         Write-Err "DNS resolution still failing. Check your network connection and try again."
     }
     Write-Info "  DNS fixed"
@@ -143,7 +152,7 @@ if (Test-Path $EnvFile) {
 } else {
     Write-Host ""
     Write-Host "  To connect Salesforce orgs, you need OAuth credentials." -ForegroundColor White
-    Write-Host "  Get these from your team lead or the Jetstream setup wiki."
+    Write-Host "  Find them in the shared 1Password vault: 'Jetstream Local Credentials'" -ForegroundColor White
     Write-Host ""
     Write-Host "  If you don't have them yet, press Enter to skip."
     Write-Host "  You can add them later by editing the .env file."
@@ -161,11 +170,10 @@ if (Test-Path $EnvFile) {
     }
 
     @"
-# Salesforce OAuth credentials (obtain from your team lead)
+# Salesforce OAuth credentials (from 1Password: "Jetstream Local Credentials")
 SFDC_CONSUMER_KEY='$sfdcKey'
 SFDC_CONSUMER_SECRET='$sfdcSecret'
-"@ | Set-Content -Path $EnvFile -Encoding UTF8
-
+"@ | Set-Content -Path $EnvFile -Encoding UTF8 -NoNewline
 }
 
 # ------------------------------------------------------------------
@@ -175,12 +183,12 @@ Write-Info "Step 6/7: Building Jetstream..."
 Write-Info "  This takes 15-20 minutes on the first build. Please be patient."
 Write-Host ""
 
-Push-Location $ProjectDir
+Set-Location $ProjectDir
 
 # Clean up old images to free disk space
-podman system prune -a -f > $null 2>&1
+& podman system prune -a -f > $null 2>&1
 
-podman build --no-cache -t jetstream-app .
+& podman build --no-cache -t jetstream-app .
 
 Write-Host ""
 Write-Info "Build complete!"
@@ -202,6 +210,4 @@ Write-Host ""
 Write-Host "  Press Ctrl+C to stop Jetstream." -ForegroundColor Yellow
 Write-Host ""
 
-podman compose up
-
-Pop-Location
+& podman compose up

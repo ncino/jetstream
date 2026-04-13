@@ -132,7 +132,7 @@ if [ -f "$ENV_FILE" ]; then
 else
     echo ""
     echo -e "  ${BOLD}To connect Salesforce orgs, you need OAuth credentials.${NC}"
-    echo -e "  Get these from your team lead or the Jetstream setup wiki."
+    echo -e "  Find them in the shared 1Password vault: ${BOLD}Jetstream Local Credentials${NC}"
     echo ""
     echo -e "  If you don't have them yet, press Enter to skip."
     echo -e "  You can add them later by editing the .env file."
