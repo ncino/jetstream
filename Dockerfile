@@ -1,9 +1,11 @@
 # syntax = docker/dockerfile:1
 
-ARG NODE_VERSION=20.10.0
+ARG NODE_VERSION=22
 ARG ENVIRONMENT=production
 
 FROM node:${NODE_VERSION}-slim AS base
+COPY ZscalerRoot-FullBundle.pem /usr/local/share/ca-certificates/ZscalerRoot-FullBundle.pem
+ENV NODE_EXTRA_CA_CERTS=/usr/local/share/ca-certificates/ZscalerRoot-FullBundle.pem
 
 # App lives here
 WORKDIR /app
@@ -21,15 +23,20 @@ RUN apt-get update -qq && \
     apt-get install --no-install-recommends -y build-essential node-gyp openssl pkg-config python-is-python3
 
 # Install node modules
-COPY --link package.json yarn.lock ./
+COPY package.json yarn.lock ./
+COPY prisma.config.ts ./
+COPY prisma ./prisma
+# Dummy value so prisma generate (postinstall) can resolve the env var during build.
+# The real connection string is provided at runtime via docker-compose.
+ENV JETSTREAM_POSTGRES_DBURI=postgres://build:build@localhost:5432/postgres
 RUN yarn install --frozen-lockfile --production=false
 
 # Generate Prisma Client
-COPY --link prisma .
+COPY prisma .
 RUN yarn run db:generate
 
 # Copy application code
-COPY --link . .
+COPY . .
 
 # Build application
 RUN yarn build:core && \
@@ -38,13 +45,16 @@ RUN yarn build:core && \
     yarn scripts:replace-deps && \
     rm -rf .nx
 
-# Remove development dependencies and unused prod dependecies
-RUN yarn install --production=true && \
-    yarn add cross-env npm-run-all --save-dev
+# Remove development dependencies and unused prod dependencies.
+# Prisma client was already generated earlier, so skip the postinstall hook
+# (prisma CLI is a devDependency and gets removed by --production=true).
+RUN yarn install --production=true --ignore-scripts && \
+    yarn add --ignore-scripts cross-env npm-run-all --save-dev && \
+    yarn add --ignore-scripts prisma tsx
 
 # FIXME: figure out why this is not included
 # Add missing dependencies
-RUN yarn add @react-email/components
+RUN yarn add --ignore-scripts @react-email/components
 
 # Final stage for app image
 FROM base

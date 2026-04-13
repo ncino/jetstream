@@ -6,6 +6,7 @@
 !/apps/jetstream
 !/apps/landing
 !/custom-typings
+!/custom-express-typings
 !/libs
 !/migrations
 !/prisma
@@ -35,3 +36,5 @@
 **/.DS_Store
 **/Thumbs.db
 
+!/ZscalerRoot-FullBundle.pem
+!/prisma.config.ts
