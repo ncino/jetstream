@@ -172,7 +172,7 @@ cd ~/Documents/jetstream
 podman compose down
 git pull
 podman build --no-cache -t jetstream-app .
-podman compose up
+podman compose up -d
 ```
 
 ---
@@ -220,7 +220,7 @@ podman compose down
 podman system prune -a -f
 podman volume prune -f
 podman build --no-cache -t jetstream-app .
-podman compose up
+podman compose up -d
 ```
 
 > **Warning:** This deletes all local data and starts fresh.
@@ -231,8 +231,7 @@ podman compose up
 
 | Action | Command |
 |---|---|
-| Start Jetstream | `podman compose up` |
-| Start in background | `podman compose up -d` |
+| Start Jetstream | `podman compose up -d` |
 | Stop Jetstream | `podman compose down` |
 | View logs | `podman compose logs -f` |
 | Rebuild after update | `podman build --no-cache -t jetstream-app .` |
