@@ -84,34 +84,31 @@ To connect a Salesforce org, click **Add Org** and log in with your Salesforce c
 
 ---
 
-## Daily Usage
+## Daily Usage (after sleep, restart, or shutdown)
+
+After your machine wakes from sleep or restarts, run the start script. It automatically ensures the Podman machine is running and fixes DNS if needed.
 
 ### Starting Jetstream
 
-1. Open **Podman Desktop** (make sure the machine is running)
-2. Open Terminal (macOS) or PowerShell (Windows):
-   ```bash
-   cd ~/Documents/jetstream
-   podman compose up
-   ```
-3. Open **http://localhost:3333/app**
+**macOS** (Terminal):
+```bash
+cd ~/Documents/jetstream
+./scripts/podman-start.sh
+```
+
+**Windows** (PowerShell):
+```powershell
+cd $HOME\Documents\jetstream
+.\scripts\podman-start.ps1
+```
+
+Then open **http://localhost:3333/app**.
 
 ### Stopping Jetstream
 
 Press **Ctrl+C** in the terminal where Jetstream is running.
 
 Or from another terminal:
-```bash
-podman compose down
-```
-
-### Running in the background
-
-```bash
-podman compose up -d
-```
-
-Stop later with:
 ```bash
 podman compose down
 ```
