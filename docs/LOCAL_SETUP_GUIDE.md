@@ -17,14 +17,59 @@ The Zscaler certificate is already included in the repository.
 
 ## Setup (One-Time)
 
-### Step 1: Install Podman Desktop
+### Step 1: Install and Configure Podman Desktop
 
-1. Download from [podman-desktop.io](https://podman-desktop.io) or install from **Iru Self Service**
-2. Install and launch it
-3. When prompted, initialize the Podman machine and wait for it to start (green "Running" status)
-4. Open Podman Desktop **Settings** and enable:
-   - **Autostart Podman engine** — so the machine starts automatically when Podman Desktop opens
-   - **Start Podman Desktop on login** (if available) — so it's always ready after a restart
+#### 1a. Install Podman Desktop
+
+Download from [podman-desktop.io](https://podman-desktop.io) or install from **Iru Self Service**.
+
+**macOS:** Open the `.dmg` file and drag Podman Desktop to the Applications folder.
+
+**Windows:** Run the installer `.exe` and follow the prompts with default settings.
+
+#### 1b. Launch and Initialize the Podman Machine
+
+1. Open **Podman Desktop**
+2. On first launch, you'll see a welcome screen. Click **Next** / **Continue** through the intro screens.
+3. Podman Desktop will prompt you to **initialize a Podman machine**. This is a lightweight Linux VM that runs containers.
+4. **Important — set the memory to 6 GB (6144 MB) or higher:**
+   - On the machine creation screen, look for the **Memory** slider or input field
+   - The default is typically **4 GB (4096 MB)** — this is **not enough** for building Jetstream
+   - Set it to **6 GB (6144 MB)** or higher (8 GB is fine if your machine has 16+ GB of RAM)
+   - Leave CPU and Disk Size at their defaults (or increase if you prefer)
+5. Click **Create** (or **Initialize**) and wait for the machine to be created
+6. The machine will start automatically. Wait until you see a **green "Running"** status in the bottom-left corner of Podman Desktop
+
+> **If you missed the memory setting or need to change it later:**
+> 1. In Podman Desktop, go to **Settings > Resources**
+> 2. Find your Podman machine and click the **Stop** button (square icon)
+> 3. Once stopped, click the **Edit** button (pencil icon)
+> 4. Change Memory to **6144 MB** or higher
+> 5. Click **Save**, then click **Start** (play icon)
+>
+> Or use the terminal:
+> ```bash
+> podman machine stop
+> podman machine set --memory 6144
+> podman machine start
+> ```
+
+#### 1c. Configure Podman Desktop Settings
+
+Once the machine is running, configure these settings so Podman starts automatically:
+
+1. Click the **gear icon** (⚙️) in the bottom-left corner to open **Settings**
+2. Go to **Preferences** (or **Settings > Preferences**)
+3. Find and enable these options:
+   - **Autostart Podman engine** — starts the Podman machine automatically when Podman Desktop opens
+   - **Start Podman Desktop on login** (if available) — launches Podman Desktop when you log into your computer
+4. Close the Settings panel
+
+#### 1d. Verify Podman is Working
+
+You should see in the Podman Desktop dashboard:
+- **Podman machine**: green "Running" status
+- **No error banners** at the top of the window
 
 > **If Podman Desktop gets stuck on "Podman Machine is starting":** Close it completely, open Terminal (macOS) or PowerShell (Windows), run `podman machine start`, then reopen Podman Desktop.
 
@@ -57,7 +102,7 @@ cd jetstream
 
 ### Step 4: Run the setup script
 
-The setup script handles everything else automatically: configuring the Podman machine, installing the certificate, building Jetstream, and starting it.
+The setup script handles the remaining configuration automatically: installing the Zscaler certificate into the Podman machine, fixing DNS if needed, prompting for Salesforce credentials, building Jetstream, and starting it. It will also verify your Podman machine memory and increase it if needed.
 
 **macOS** (Terminal):
 ```bash
@@ -141,7 +186,7 @@ podman compose up
 | `x509: certificate signed by unknown authority` | Zscaler cert not in Podman VM. Re-run the setup script. |
 | `unable to get local issuer certificate` | `ZscalerRoot-FullBundle.pem` missing from project folder. Run `git pull` to get it. |
 | `getaddrinfo ENOTFOUND github.com` | DNS broken. Run: `podman machine ssh "echo 'nameserver 8.8.8.8' \| sudo tee -a /etc/resolv.conf"` |
-| Build silently fails at "rendering chunks..." | Out of memory. Run: `podman machine stop && podman machine set --memory 6144 && podman machine start` |
+| Build silently fails at "rendering chunks..." | Out of memory. Increase Podman machine memory to 6 GB: In Podman Desktop go to **Settings > Resources**, stop the machine, edit memory to **6144 MB**, save, and start. Or run: `podman machine stop && podman machine set --memory 6144 && podman machine start` |
 | `invalid_client_id` when adding a Salesforce org | Wrong OAuth credentials. Check the Consumer Key in `.env` matches the 1Password vault ("Jetstream Local Credentials"). |
 | `podman compose: command not found` | Podman Desktop may need to be restarted, or use `podman-compose` instead. |
 
