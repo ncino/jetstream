@@ -8,7 +8,7 @@
     and starts Jetstream. Safe to run repeatedly.
 
 .EXAMPLE
-    .\scripts\podman-start.ps1
+    .\scripts\podman-start-windows.ps1
 #>
 
 $ErrorActionPreference = "Stop"
@@ -36,7 +36,7 @@ try {
 }
 
 if ($machineState -eq "not_found") {
-    Write-Err "Podman machine not found. Run the setup script first: .\scripts\podman-setup.ps1"
+    Write-Err "Podman machine not found. Run the setup script first: .\scripts\podman-setup-windows.ps1"
 } elseif ($machineState -ne "running") {
     Write-Info "Starting Podman machine..."
     & podman machine start
@@ -57,7 +57,7 @@ if (-not ("$dnsResult" -match "yes")) {
 # ------------------------------------------------------------------
 $imageCheck = & podman image exists jetstream-app 2>&1
 if ($LASTEXITCODE -ne 0) {
-    Write-Err "Jetstream image not found. Run the setup script first: .\scripts\podman-setup.ps1"
+    Write-Err "Jetstream image not found. Run the setup script first: .\scripts\podman-setup-windows.ps1"
 }
 
 # ------------------------------------------------------------------

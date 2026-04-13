@@ -19,7 +19,7 @@
         (entry: "Jetstream Local Credentials")
 
 .EXAMPLE
-    .\scripts\podman-setup.ps1
+    .\scripts\podman-setup-windows.ps1
 #>
 
 $ErrorActionPreference = "Stop"

@@ -6,7 +6,7 @@
 # and starts Jetstream. Safe to run repeatedly.
 #
 # Usage:
-#   ./scripts/podman-start.sh
+#   ./scripts/podman-start-mac.sh
 
 set -e
 
@@ -29,7 +29,7 @@ error() { echo -e "${RED}[ERROR]${NC} $1"; exit 1; }
 MACHINE_STATE=$(podman machine inspect --format '{{.State}}' 2>/dev/null || echo "not_found")
 
 if [ "$MACHINE_STATE" = "not_found" ]; then
-    error "Podman machine not found. Run the setup script first: ./scripts/podman-setup.sh"
+    error "Podman machine not found. Run the setup script first: ./scripts/podman-setup-mac.sh"
 elif [ "$MACHINE_STATE" != "running" ]; then
     info "Starting Podman machine..."
     podman machine start
@@ -49,7 +49,7 @@ fi
 # Check that the image exists
 # ------------------------------------------------------------------
 if ! podman image exists jetstream-app 2>/dev/null; then
-    error "Jetstream image not found. Run the setup script first: ./scripts/podman-setup.sh"
+    error "Jetstream image not found. Run the setup script first: ./scripts/podman-setup-mac.sh"
 fi
 
 # ------------------------------------------------------------------

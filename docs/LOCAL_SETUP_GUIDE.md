@@ -59,13 +59,13 @@ The setup script handles everything else automatically: configuring the Podman m
 **macOS** (Terminal):
 ```bash
 cd ~/Documents/jetstream
-./scripts/podman-setup.sh
+./scripts/podman-setup-mac.sh
 ```
 
 **Windows** (PowerShell):
 ```powershell
 cd $HOME\Documents\jetstream
-.\scripts\podman-setup.ps1
+.\scripts\podman-setup-windows.ps1
 ```
 
 When prompted for Salesforce credentials, paste the **Consumer Key** and **Consumer Secret** from the shared 1Password vault under "Jetstream Local Credentials" (entry: "Jetstream Local Credentials").
@@ -93,13 +93,13 @@ After your machine wakes from sleep or restarts, run the start script. It automa
 **macOS** (Terminal):
 ```bash
 cd ~/Documents/jetstream
-./scripts/podman-start.sh
+./scripts/podman-start-mac.sh
 ```
 
 **Windows** (PowerShell):
 ```powershell
 cd $HOME\Documents\jetstream
-.\scripts\podman-start.ps1
+.\scripts\podman-start-windows.ps1
 ```
 
 Then open **http://localhost:3333/app**.

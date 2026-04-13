@@ -14,7 +14,7 @@
 #   - ZscalerRoot-FullBundle.pem in the project root directory
 #
 # Usage:
-#   ./scripts/podman-setup.sh
+#   ./scripts/podman-setup-mac.sh
 
 set -e
 
