@@ -16,6 +16,18 @@ vi.mock('@jetstream/api-config', () => ({
 
 vi.mock('@jetstream/auth/server', () => ({
   getApiAddressFromReq: vi.fn(() => '127.0.0.1'),
+  AuthError: class AuthError extends Error {},
+  createCSRFToken: vi.fn(() => 'csrf-token'),
+  getCookieConfig: vi.fn(() => ({})),
+}));
+
+vi.mock('../../db/salesforce-org.db', () => ({
+  findByUniqueId_UNSAFE: vi.fn(),
+}));
+
+vi.mock('../../services/salesforce-org-encryption.service', () => ({
+  encryptAccessToken: vi.fn(),
+  DUMMY_INVALID_ENCRYPTED_TOKEN: 'invalid',
 }));
 
 import * as apiConfig from '@jetstream/api-config';
@@ -35,8 +47,11 @@ function makeReq() {
 function makeRes() {
   return {
     json: vi.fn(),
+    status: vi.fn().mockReturnThis(),
+    setHeader: vi.fn(),
+    headersSent: false,
     locals: { requestId: 'req-1' },
-    log: { info: vi.fn(), error: vi.fn() },
+    log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
   } as any;
 }
 
@@ -53,10 +68,12 @@ describe('listEcas', () => {
     await handler(req, res, vi.fn());
 
     expect(res.json).toHaveBeenCalledWith({
-      ecas: [
-        { id: 'prod', label: 'Production', defaultFor: ['https://login.salesforce.com'] },
-        { id: 'ncinodev', label: 'nCino Dev', defaultFor: ['https://test.salesforce.com'] },
-      ],
+      data: {
+        ecas: [
+          { id: 'prod', label: 'Production', defaultFor: ['https://login.salesforce.com'] },
+          { id: 'ncinodev', label: 'nCino Dev', defaultFor: ['https://test.salesforce.com'] },
+        ],
+      },
     });
   });
 });

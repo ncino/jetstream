@@ -1,5 +1,6 @@
 import { getEcas } from '@jetstream/api-config';
 import { z } from 'zod';
+import { sendJson } from '../utils/response.handlers';
 import { createRoute, RouteValidator } from '../utils/route.utils';
 
 export const routeDefinition = {
@@ -14,5 +15,5 @@ export const routeDefinition = {
 
 const listEcas = createRoute(routeDefinition.listEcas.validators, async (_, _req, res) => {
   const ecas = getEcas().map(({ id, label, defaultFor }) => ({ id, label, defaultFor }));
-  res.json({ ecas });
+  sendJson(res, { ecas });
 });
