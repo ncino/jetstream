@@ -1,4 +1,4 @@
-import { ENV, getExceptionLog, logger } from '@jetstream/api-config';
+import { ENV, getDefaultEcaForLoginUrl, getEcaById, getExceptionLog, logger } from '@jetstream/api-config';
 import { ApiConnection, ApiRequestError, getApiRequestFactoryFn } from '@jetstream/salesforce-api';
 import * as oauthService from '@jetstream/salesforce-oauth';
 import { ERROR_MESSAGES } from '@jetstream/shared/constants';
@@ -31,6 +31,7 @@ export const routeDefinition = {
           z.literal('https://prerellogin.pre.salesforce.com'),
           z.string().regex(/^https:\/\/[a-zA-Z0-9.-]+\.my\.salesforce\.com$/),
         ]),
+        ecaId: z.string().optional(),
         addLoginParam: z
           .enum(['true', 'false'])
           .optional()
@@ -58,16 +59,29 @@ export const routeDefinition = {
  * @param res
  */
 const salesforceOauthInitAuth = createRoute(routeDefinition.salesforceOauthInitAuth.validators, async ({ query }, req, res) => {
-  const { loginUrl, addLoginParam, loginHint, jetstreamOrganizationId, orgGroupId } = query;
+  const { loginUrl, ecaId, addLoginParam, loginHint, jetstreamOrganizationId, orgGroupId } = query;
+
+  const eca = ecaId ? getEcaById(ecaId) : getDefaultEcaForLoginUrl(loginUrl);
+  if (!eca) {
+    throw new Error(`Unknown ecaId: ${ecaId ?? '(none)'}`);
+  }
+
   const { authorizationUrl, code_verifier, nonce, state } = await oauthService.salesforceOauthInit({
-    clientId: ENV.SFDC_CONSUMER_KEY,
-    clientSecret: ENV.SFDC_CONSUMER_SECRET,
+    clientId: eca.key,
+    clientSecret: eca.secret,
     redirectUri: ENV.SFDC_CALLBACK_URL,
     loginUrl,
     addLoginParam,
     loginHint,
   });
-  req.session.orgAuth = { code_verifier, nonce, state, loginUrl, orgGroupId: orgGroupId || jetstreamOrganizationId };
+  req.session.orgAuth = {
+    code_verifier,
+    nonce,
+    state,
+    loginUrl,
+    orgGroupId: orgGroupId || jetstreamOrganizationId,
+    ecaId: eca.id,
+  };
   res.redirect(authorizationUrl.toString());
 });
 

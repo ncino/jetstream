@@ -172,7 +172,7 @@ export interface SessionData {
   sessionDetails?: { isTemporary: boolean };
   pendingTosAcceptance?: boolean | null;
   sendNewUserEmailAfterVerify?: boolean;
-  orgAuth?: { code_verifier: string; nonce: string; state: string; loginUrl: string; orgGroupId?: Maybe<string> };
+  orgAuth?: { code_verifier: string; nonce: string; state: string; loginUrl: string; orgGroupId?: Maybe<string>; ecaId: string };
   // SSO state
   ssoReturnUrl?: string;
   oidcState?: {
