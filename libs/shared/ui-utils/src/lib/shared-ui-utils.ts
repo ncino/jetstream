@@ -952,13 +952,16 @@ function handleWindowEvent(event: MessageEvent) {
 }
 
 export const addOrg: AddOrgHandlerFn = (options, callback) => {
-  const { serverUrl, loginUrl, addLoginTrue, orgGroupId, loginHint } = options;
+  const { serverUrl, loginUrl, ecaId, addLoginTrue, orgGroupId, loginHint } = options;
   addOrgCallbackFn = callback;
   window.removeEventListener('message', handleWindowEvent);
   const strWindowFeatures = 'toolbar=no, menubar=no, width=1025, height=700';
   const url = new URL(`${serverUrl}/oauth/sfdc/auth`);
   url.searchParams.set('loginUrl', loginUrl);
   url.searchParams.set('clientUrl', document.location.origin);
+  if (ecaId) {
+    url.searchParams.set('ecaId', ecaId);
+  }
   if (loginHint) {
     url.searchParams.set('loginHint', loginHint);
   }

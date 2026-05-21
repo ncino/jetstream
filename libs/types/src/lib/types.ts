@@ -423,7 +423,14 @@ export interface FormulaFieldsByType {
 }
 
 export type AddOrgHandlerFn = (
-  options: { serverUrl: string; loginUrl: string; addLoginTrue?: boolean; orgGroupId?: Maybe<string>; loginHint?: string },
+  options: {
+    serverUrl: string;
+    loginUrl: string;
+    ecaId?: string;
+    addLoginTrue?: boolean;
+    orgGroupId?: Maybe<string>;
+    loginHint?: string;
+  },
   callback: (org: SalesforceOrgUi) => void,
 ) => void;
 
