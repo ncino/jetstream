@@ -9,5 +9,6 @@ export * from './lib/api-logger';
 export * from './lib/api-rate-limit.config';
 export * from './lib/api-rollbar-config';
 export * from './lib/db-cache-provider.config';
+export * from './lib/eca-registry';
 export * from './lib/email.config';
 export * from './lib/env-config';
