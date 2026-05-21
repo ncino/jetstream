@@ -131,28 +131,72 @@ if [ -f "$ENV_FILE" ]; then
     info "  Credentials file (.env) already exists, keeping existing values"
 else
     echo ""
-    echo -e "  ${BOLD}To connect Salesforce orgs, you need OAuth credentials.${NC}"
+    echo -e "  ${BOLD}To connect Salesforce orgs, you need OAuth credentials (one ECA per Salesforce org that hosts a Connected App).${NC}"
     echo -e "  Find them in the shared 1Password vault: ${BOLD}Jetstream Local Credentials${NC}"
     echo ""
-    echo -e "  If you don't have them yet, press Enter to skip."
-    echo -e "  You can add them later by editing the .env file."
+    echo -e "  Press Enter at the ID prompt to stop adding ECAs."
     echo ""
-    read -p "  Salesforce Consumer Key: " SFDC_KEY
-    read -p "  Salesforce Consumer Secret: " SFDC_SECRET
 
-    if [ -z "$SFDC_KEY" ] || [ -z "$SFDC_SECRET" ]; then
-        warn "  Skipping — you can add credentials later by editing .env"
-        SFDC_KEY="placeholder-get-key-from-your-team"
-        SFDC_SECRET="placeholder-get-secret-from-your-team"
-    else
-        info "  Credentials saved"
-    fi
+    : > "$ENV_FILE"
+    echo "# Salesforce External Client Apps (ECAs)" >> "$ENV_FILE"
 
-    cat > "$ENV_FILE" << EOF
-# Salesforce OAuth credentials (obtain from your team lead)
-SFDC_CONSUMER_KEY='${SFDC_KEY}'
-SFDC_CONSUMER_SECRET='${SFDC_SECRET}'
+    eca_index=1
+    while true; do
+        echo ""
+        echo -e "  ${BOLD}ECA #${eca_index}${NC}"
+        read -p "    ID (short slug, e.g. prod, ncinodev) [enter to stop]: " ECA_ID
+        if [ -z "$ECA_ID" ]; then
+            break
+        fi
+        if ! [[ "$ECA_ID" =~ ^[a-z0-9-]+$ ]]; then
+            warn "    Invalid id; must match ^[a-z0-9-]+\$. Try again."
+            continue
+        fi
+        read -p "    Label (e.g. Production): " ECA_LABEL
+        read -p "    Consumer Key: " ECA_KEY
+        read -p "    Consumer Secret: " ECA_SECRET
+        echo "    Default for which org type? (optional)"
+        echo "      1) Production (login.salesforce.com)"
+        echo "      2) Sandbox (test.salesforce.com)"
+        echo "      3) Pre-release (prerellogin.pre.salesforce.com)"
+        echo "      4) None"
+        read -p "    Choice [4]: " ECA_DEFAULT_CHOICE
+        case "${ECA_DEFAULT_CHOICE:-4}" in
+            1) ECA_DEFAULT="prod" ;;
+            2) ECA_DEFAULT="sandbox" ;;
+            3) ECA_DEFAULT="pre-release" ;;
+            *) ECA_DEFAULT="" ;;
+        esac
+
+        cat >> "$ENV_FILE" << EOF
+SFDC_ECA_${eca_index}_ID='${ECA_ID}'
+SFDC_ECA_${eca_index}_LABEL='${ECA_LABEL}'
+SFDC_ECA_${eca_index}_KEY='${ECA_KEY}'
+SFDC_ECA_${eca_index}_SECRET='${ECA_SECRET}'
+SFDC_ECA_${eca_index}_DEFAULT_FOR='${ECA_DEFAULT}'
+
 EOF
+
+        info "    Saved ECA #${eca_index} (${ECA_ID})"
+        eca_index=$((eca_index + 1))
+
+        read -p "  Add another ECA? (y/N) " ADD_ANOTHER
+        case "$ADD_ANOTHER" in
+            y|Y) continue ;;
+            *) break ;;
+        esac
+    done
+
+    if [ "$eca_index" -eq 1 ]; then
+        warn "  No ECAs configured — adding placeholders so the app can boot."
+        cat >> "$ENV_FILE" << 'EOF'
+SFDC_ECA_1_ID='placeholder'
+SFDC_ECA_1_LABEL='Placeholder'
+SFDC_ECA_1_KEY='placeholder-get-key-from-your-team'
+SFDC_ECA_1_SECRET='placeholder-get-secret-from-your-team'
+SFDC_ECA_1_DEFAULT_FOR=''
+EOF
+    fi
 fi
 
 # ------------------------------------------------------------------
