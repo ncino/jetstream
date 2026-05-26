@@ -565,6 +565,7 @@ model SalesforceOrg {
   orgOrganizationType            String?                @db.VarChar
   color                          String?                @db.VarChar(10)
   lastActivityAt                 DateTime?              @db.Timestamp(6)
+  ecaId                          String?                @db.VarChar
   expirationScheduledFor         DateTime?              @db.Timestamp(6)
   nextExpirationNotificationDate DateTime?              @db.Timestamp(6)
   lastExpirationNotificationAt   DateTime?              @db.Timestamp(6)
