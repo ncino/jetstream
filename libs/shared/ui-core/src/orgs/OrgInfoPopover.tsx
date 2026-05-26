@@ -25,6 +25,7 @@ import { useAtomValue } from 'jotai';
 import startCase from 'lodash/startCase';
 import { Fragment, FunctionComponent, ReactNode, useEffect, useState } from 'react';
 import { useResizeDetector } from 'react-resize-detector';
+import { useEcaLookup } from './useEcaLookup';
 
 const EMPTY_COLOR = '_none_';
 
@@ -164,6 +165,7 @@ export const OrgInfoPopover: FunctionComponent<OrgInfoPopoverProps> = ({
 }) => {
   const { serverUrl } = useAtomValue(applicationCookieState);
   const skipFrontDoorAuth = useAtomValue(selectSkipFrontdoorAuth);
+  const ecaLookup = useEcaLookup();
   const [orgLabel, setOrgLabel] = useState(org.label || org.username);
   const [orgColor, setOrgColor] = useState(org.color || EMPTY_COLOR);
   const [removeOrgActive, setRemoveOrgActive] = useState(false);
@@ -348,6 +350,18 @@ export const OrgInfoPopover: FunctionComponent<OrgInfoPopoverProps> = ({
               {getOrgProp(serverUrl, org, skipFrontDoorAuth, 'instanceUrl')}
               {getOrgProp(serverUrl, org, skipFrontDoorAuth, 'orgOrganizationType', 'Org Type')}
               {getOrgProp(serverUrl, org, skipFrontDoorAuth, 'orgIsSandbox', 'Is Sandbox')}
+              {ecaLookup.count > 1 && org.ecaId && (
+                <tr className="slds-hint-parent">
+                  <td>
+                    <div title="Connected App">Connected App</div>
+                  </td>
+                  <td>
+                    <div className="slds-truncate" title={ecaLookup.byId.get(org.ecaId) ?? 'Unknown connected app'}>
+                      {ecaLookup.byId.get(org.ecaId) ?? <span className="slds-text-color_weak">Unknown connected app</span>}
+                    </div>
+                  </td>
+                </tr>
+              )}
               {getOrgProp(serverUrl, org, skipFrontDoorAuth, 'orgTrialExpirationDate', 'Trial Expiration')}
               {getOrgProp(serverUrl, org, skipFrontDoorAuth, 'userId')}
               {getOrgProp(serverUrl, org, skipFrontDoorAuth, 'username')}
