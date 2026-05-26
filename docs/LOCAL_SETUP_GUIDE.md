@@ -111,7 +111,9 @@ cd jetstream
 
 The setup script handles the remaining configuration automatically: installing the Zscaler certificate into the Podman machine, fixing DNS if needed, prompting for Salesforce credentials, building Jetstream, and starting it. It will also verify your Podman machine memory and increase it if needed.
 
-The script loops to collect **multiple Connected App credentials** — one per Salesforce org that hosts an ECA (for example, `prod`, `ncinodev`, `partialdev`). For each ECA you'll be prompted for an ID, label, Consumer Key, and Consumer Secret. Press **Enter** at the ID prompt to stop adding entries.
+On **macOS**, the script loops to collect **multiple Connected App credentials** — one per Salesforce org that hosts an ECA (for example, `prod`, `ncinodev`, `partialdev`). For each ECA you'll be prompted for an ID, label, Consumer Key, and Consumer Secret. Press **Enter** at the ID prompt to stop adding entries.
+
+> **Windows note:** The current `podman-setup-windows.ps1` only prompts for a single Connected App (Consumer Key and Consumer Secret) and writes it as the legacy ECA — the back-compat shim ensures Jetstream still works. To register additional ECAs on Windows, edit `.env` after the script finishes and append `SFDC_ECA_<N>_*` blocks (`SFDC_ECA_2_*`, `SFDC_ECA_3_*`, ...) following the format in `.env.example`. Multi-ECA prompting in the PowerShell script is a planned follow-up.
 
 **macOS** (Terminal):
 
@@ -127,7 +129,10 @@ cd $HOME\Documents\jetstream
 .\scripts\podman-setup-windows.ps1
 ```
 
-When prompted for Salesforce credentials, paste the **Consumer Key** and **Consumer Secret** for each ECA from the shared 1Password vault under "Jetstream Local Credentials". The vault contains one credentials entry per ECA — repeat the prompt loop once per entry, then press **Enter** at the ID prompt to finish.
+When prompted for Salesforce credentials, paste the **Consumer Key** and **Consumer Secret** for each ECA from the shared 1Password vault under "Jetstream Local Credentials". The vault contains one credentials entry per ECA.
+
+- **macOS:** repeat the prompt loop once per vault entry, then press **Enter** at the ID prompt to finish.
+- **Windows:** the script will prompt only once. Paste the credentials for your primary ECA, then add any additional ECAs by editing `.env` directly (see the Windows note above).
 
 The build takes **15-20 minutes** the first time. Once it finishes, Jetstream will start automatically.
 
