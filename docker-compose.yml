@@ -3,6 +3,7 @@ services:
   jetstream:
     image: jetstream-app
     init: true
+    env_file: .env
     depends_on:
       db:
         condition: service_healthy
@@ -38,10 +39,8 @@ services:
       SFDC_ENCRYPTION_KEY: 'bG9jYWwtZGV2LXNmZGMtZW5jcnlwdGlvbi1rZXktYWJj'
       DESKTOP_ORG_ENCRYPTION_SECRET: 'local-dev-desktop-org-encryption-secret-do-not-use-in-production'
 
-      # Salesforce OAuth (dummy values for local testing with example user)
-      # These are read from .env (created by the setup script)
-      SFDC_CONSUMER_KEY: ${SFDC_CONSUMER_KEY}
-      SFDC_CONSUMER_SECRET: ${SFDC_CONSUMER_SECRET}
+      # Salesforce OAuth — SFDC_ECA_<N>_* env vars are pulled from .env via `env_file` above.
+      # SFDC_LEGACY_CONSUMER_SECRET (optional, for back-compat decryption) also flows through.
       SFDC_CALLBACK_URL: http://localhost:3333/oauth/sfdc/callback
       NX_SFDC_API_VERSION: '63.0'
 
