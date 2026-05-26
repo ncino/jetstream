@@ -9,7 +9,7 @@ Run Jetstream locally using **Podman Desktop**. Works on macOS and Windows.
 You need two things before running the setup:
 
 1. **Podman Desktop** — install from [podman-desktop.io](https://podman-desktop.io)
-2. **Salesforce OAuth credentials** (Consumer Key and Consumer Secret) — stored in the **shared 1Password vault under "Jetstream Local Credentials"**
+2. **Salesforce OAuth credentials** (Consumer Key and Consumer Secret) for one or more Connected Apps (ECAs) — stored in the **shared 1Password vault under "Jetstream Local Credentials"**, with one entry per ECA (for example, separate entries for `prod`, `ncinodev`, and `partialdev`). Collect all of them before running the setup script.
 
 The Zscaler certificate is already included in the repository.
 
@@ -41,6 +41,7 @@ Download from [podman-desktop.io](https://podman-desktop.io) or install from **I
 6. The machine will start automatically. Wait until you see a **green "Running"** status in the bottom-left corner of Podman Desktop
 
 > **If you missed the memory setting or need to change it later:**
+>
 > 1. In Podman Desktop, go to **Settings > Resources**
 > 2. Find your Podman machine and click the **Stop** button (square icon)
 > 3. Once stopped, click the **Edit** button (pencil icon)
@@ -48,6 +49,7 @@ Download from [podman-desktop.io](https://podman-desktop.io) or install from **I
 > 5. Click **Save**, then click **Start** (play icon)
 >
 > Or use the terminal:
+>
 > ```bash
 > podman machine stop
 > podman machine set --memory 6144
@@ -68,6 +70,7 @@ Once the machine is running, configure these settings so Podman starts automatic
 #### 1d. Verify Podman is Working
 
 You should see in the Podman Desktop dashboard:
+
 - **Podman machine**: green "Running" status
 - **No error banners** at the top of the window
 
@@ -76,9 +79,11 @@ You should see in the Podman Desktop dashboard:
 ### Step 2: Install Git (if you don't have it)
 
 **macOS:**
+
 ```bash
 git --version
 ```
+
 If prompted, click **Install** to install Xcode Command Line Tools.
 
 **Windows:**
@@ -87,6 +92,7 @@ Download from [git-scm.com](https://git-scm.com/download/win) and install with d
 ### Step 3: Clone the repository
 
 **macOS** (Terminal):
+
 ```bash
 cd ~/Documents
 git clone https://github.com/jetstreamapp/jetstream.git
@@ -94,6 +100,7 @@ cd jetstream
 ```
 
 **Windows** (PowerShell):
+
 ```powershell
 cd $HOME\Documents
 git clone https://github.com/jetstreamapp/jetstream.git
@@ -104,19 +111,23 @@ cd jetstream
 
 The setup script handles the remaining configuration automatically: installing the Zscaler certificate into the Podman machine, fixing DNS if needed, prompting for Salesforce credentials, building Jetstream, and starting it. It will also verify your Podman machine memory and increase it if needed.
 
+The script loops to collect **multiple Connected App credentials** — one per Salesforce org that hosts an ECA (for example, `prod`, `ncinodev`, `partialdev`). For each ECA you'll be prompted for an ID, label, Consumer Key, and Consumer Secret. Press **Enter** at the ID prompt to stop adding entries.
+
 **macOS** (Terminal):
+
 ```bash
 cd ~/Documents/jetstream
 ./scripts/podman-setup-mac.sh
 ```
 
 **Windows** (PowerShell):
+
 ```powershell
 cd $HOME\Documents\jetstream
 .\scripts\podman-setup-windows.ps1
 ```
 
-When prompted for Salesforce credentials, paste the **Consumer Key** and **Consumer Secret** from the shared 1Password vault under "Jetstream Local Credentials" (entry: "Jetstream Local Credentials").
+When prompted for Salesforce credentials, paste the **Consumer Key** and **Consumer Secret** for each ECA from the shared 1Password vault under "Jetstream Local Credentials". The vault contains one credentials entry per ECA — repeat the prompt loop once per entry, then press **Enter** at the ID prompt to finish.
 
 The build takes **15-20 minutes** the first time. Once it finishes, Jetstream will start automatically.
 
@@ -125,6 +136,7 @@ The build takes **15-20 minutes** the first time. Once it finishes, Jetstream wi
 Go to: **http://localhost:3333/app**
 
 Login:
+
 - **Email:** `test@example.com`
 - **Password:** `EXAMPLE_123!`
 
@@ -139,12 +151,14 @@ After your machine wakes from sleep or restarts, run the start script. It automa
 ### Starting Jetstream
 
 **macOS** (Terminal):
+
 ```bash
 cd ~/Documents/jetstream
 ./scripts/podman-start-mac.sh
 ```
 
 **Windows** (PowerShell):
+
 ```powershell
 cd $HOME\Documents\jetstream
 .\scripts\podman-start-windows.ps1
@@ -181,18 +195,19 @@ podman compose up -d
 
 ### Common Errors
 
-| Error | Fix |
-|---|---|
-| `x509: certificate signed by unknown authority` | Zscaler cert not in Podman VM. Re-run the setup script. |
-| `unable to get local issuer certificate` | `ZscalerRoot-FullBundle.pem` missing from project folder. Run `git pull` to get it. |
-| `getaddrinfo ENOTFOUND github.com` | DNS broken. Run: `podman machine ssh "echo 'nameserver 8.8.8.8' \| sudo tee -a /etc/resolv.conf"` |
-| Build silently fails at "rendering chunks..." | Out of memory. Increase Podman machine memory to 6 GB: In Podman Desktop go to **Settings > Resources**, stop the machine, edit memory to **6144 MB**, save, and start. Or run: `podman machine stop && podman machine set --memory 6144 && podman machine start` |
-| `invalid_client_id` when adding a Salesforce org | Wrong OAuth credentials. Check the Consumer Key in `.env` matches the 1Password vault ("Jetstream Local Credentials"). |
-| `podman compose: command not found` | Podman Desktop may need to be restarted, or use `podman-compose` instead. |
+| Error                                            | Fix                                                                                                                                                                                                                                                               |
+| ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `x509: certificate signed by unknown authority`  | Zscaler cert not in Podman VM. Re-run the setup script.                                                                                                                                                                                                           |
+| `unable to get local issuer certificate`         | `ZscalerRoot-FullBundle.pem` missing from project folder. Run `git pull` to get it.                                                                                                                                                                               |
+| `getaddrinfo ENOTFOUND github.com`               | DNS broken. Run: `podman machine ssh "echo 'nameserver 8.8.8.8' \| sudo tee -a /etc/resolv.conf"`                                                                                                                                                                 |
+| Build silently fails at "rendering chunks..."    | Out of memory. Increase Podman machine memory to 6 GB: In Podman Desktop go to **Settings > Resources**, stop the machine, edit memory to **6144 MB**, save, and start. Or run: `podman machine stop && podman machine set --memory 6144 && podman machine start` |
+| `invalid_client_id` when adding a Salesforce org | Wrong OAuth credentials. Check the Consumer Key in `.env` matches the 1Password vault ("Jetstream Local Credentials").                                                                                                                                            |
+| `podman compose: command not found`              | Podman Desktop may need to be restarted, or use `podman-compose` instead.                                                                                                                                                                                         |
 
 ### "Cannot connect to Podman" or "Podman machine not running"
 
 Open Podman Desktop and make sure the machine is running (green status). Or run:
+
 ```bash
 podman machine start
 ```
@@ -204,10 +219,12 @@ Close Podman Desktop, run `podman machine start` in Terminal/PowerShell, then re
 ### Port 3333 already in use
 
 Another app is using port 3333. Stop it, or change the port in `docker-compose.yml`:
+
 ```yaml
 ports:
   - '9999:3333'
 ```
+
 Then access Jetstream at `http://localhost:9999`.
 
 ### Resetting everything
@@ -229,20 +246,20 @@ podman compose up -d
 
 ## Quick Reference
 
-| Action | Command |
-|---|---|
-| Start Jetstream | `podman compose up -d` |
-| Stop Jetstream | `podman compose down` |
-| View logs | `podman compose logs -f` |
+| Action               | Command                                      |
+| -------------------- | -------------------------------------------- |
+| Start Jetstream      | `podman compose up -d`                       |
+| Stop Jetstream       | `podman compose down`                        |
+| View logs            | `podman compose logs -f`                     |
 | Rebuild after update | `podman build --no-cache -t jetstream-app .` |
-| Free disk space | `podman system prune -a -f` |
+| Free disk space      | `podman system prune -a -f`                  |
 
-| Info | Value |
-|---|---|
-| App URL | http://localhost:3333/app |
-| Login email | test@example.com |
-| Login password | EXAMPLE_123! |
-| Salesforce credentials | Shared 1Password vault |
+| Info                   | Value                     |
+| ---------------------- | ------------------------- |
+| App URL                | http://localhost:3333/app |
+| Login email            | test@example.com          |
+| Login password         | EXAMPLE_123!              |
+| Salesforce credentials | Shared 1Password vault    |
 
 ---
 
