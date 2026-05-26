@@ -119,3 +119,45 @@ describe('salesforceOauthInitAuth', () => {
     expect(String(errorArg.message)).toMatch(/unknown ecaId/i);
   });
 });
+
+describe('salesforceOauthCallback', () => {
+  beforeEach(() => {
+    vi.mocked(apiConfig.getEcaById).mockReset();
+    vi.mocked(oauthService.salesforceOauthCallback).mockReset();
+  });
+
+  it('redirects to /oauth-link/ with an error when the session ecaId is no longer configured', async () => {
+    vi.mocked(apiConfig.getEcaById).mockReturnValue(null);
+    const req = {
+      session: {
+        orgAuth: {
+          code_verifier: 'cv',
+          nonce: 'n',
+          state: 's',
+          loginUrl: 'https://login.salesforce.com',
+          ecaId: 'gone',
+        },
+      },
+      log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+      query: {},
+      params: {},
+      body: {},
+      externalAuth: undefined,
+    } as any;
+    const res = {
+      redirect: vi.fn(),
+      locals: { requestId: 'req-1' },
+      log: { info: vi.fn(), error: vi.fn() },
+    } as any;
+
+    const handler = routeDefinition.salesforceOauthCallback.controllerFn();
+    await handler(req, res, vi.fn());
+
+    expect(apiConfig.getEcaById).toHaveBeenCalledWith('gone');
+    expect(res.redirect).toHaveBeenCalledTimes(1);
+    const redirectUrl = res.redirect.mock.calls[0][0] as string;
+    expect(redirectUrl).toContain('/oauth-link/');
+    expect(redirectUrl).toContain('error=Authentication%20Error');
+    expect(vi.mocked(oauthService.salesforceOauthCallback)).not.toHaveBeenCalled();
+  });
+});

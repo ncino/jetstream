@@ -319,6 +319,7 @@ export interface SalesforceOrgUi {
   accessToken: string;
   instanceUrl: string;
   loginUrl: string;
+  ecaId?: Maybe<string>;
   userId: string;
   email: string;
   organizationId: string;
