@@ -4,6 +4,7 @@ import { ComboboxWithGroupedItems } from '@jetstream/ui';
 import groupBy from 'lodash/groupBy';
 import sortBy from 'lodash/sortBy';
 import { FunctionComponent, useEffect, useState } from 'react';
+import { useEcaLookup } from './useEcaLookup';
 
 function getSelectedItemLabel(item: ListItem<string, SalesforceOrgUi>) {
   const org = item.meta;
@@ -58,8 +59,9 @@ function orgHasError(org: Maybe<SalesforceOrgUi>): boolean {
   return !!org.connectionError || !!org.expirationScheduledFor;
 }
 
-function groupOrgs(orgs: SalesforceOrgUi[]): ListItemGroup<string, SalesforceOrgUi>[] {
+function groupOrgs(orgs: SalesforceOrgUi[], ecaLabelById?: Map<string, string>): ListItemGroup<string, SalesforceOrgUi>[] {
   const now = new Date();
+  const showEcaLabels = !!ecaLabelById && ecaLabelById.size > 1;
   const orgsById = groupBy(sortBy(orgs, ['label']), 'orgName');
   return Object.keys(orgsById).map(
     (key): ListItemGroup => ({
@@ -74,13 +76,21 @@ function groupOrgs(orgs: SalesforceOrgUi[]): ListItemGroup<string, SalesforceOrg
           expiryMessage = `${isExpired ? 'Expired' : 'Expires'} on ${new Date(org.expirationScheduledFor).toLocaleDateString()}`;
         }
 
+        let ecaMessage: Maybe<string> = undefined;
+        if (showEcaLabels && org.ecaId) {
+          ecaMessage = ecaLabelById?.get(org.ecaId) ?? 'Unknown connected app';
+        }
+
+        const tertiaryParts = [expiryMessage, ecaMessage].filter(Boolean);
+        const tertiaryLabel = tertiaryParts.length > 0 ? tertiaryParts.join(' • ') : undefined;
+
         return {
           id: org.uniqueId,
           label: org.label || org.username,
           value: org.uniqueId,
           secondaryLabel: org.username !== org.label ? org.username : undefined,
           secondaryLabelOnNewLine: org.username !== org.label,
-          tertiaryLabel: expiryMessage,
+          tertiaryLabel,
           meta: org,
         };
       }),
@@ -111,11 +121,12 @@ export const OrgsCombobox: FunctionComponent<OrgsComboboxProps> = ({
   minWidth = 300,
   onSelected,
 }) => {
-  const [groupedOrgs, setGroupedOrgs] = useState<ListItemGroup<string, SalesforceOrgUi>[]>(() => groupOrgs(orgs));
+  const { byId: ecaLabelById } = useEcaLookup();
+  const [groupedOrgs, setGroupedOrgs] = useState<ListItemGroup<string, SalesforceOrgUi>[]>(() => groupOrgs(orgs, ecaLabelById));
 
   useEffect(() => {
-    setGroupedOrgs(groupOrgs(orgs));
-  }, [orgs]);
+    setGroupedOrgs(groupOrgs(orgs, ecaLabelById));
+  }, [orgs, ecaLabelById]);
 
   return (
     <div
