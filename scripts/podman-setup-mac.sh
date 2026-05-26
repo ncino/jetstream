@@ -33,6 +33,7 @@ PODMAN_MEMORY=6144
 info()  { echo -e "${GREEN}[INFO]${NC}  $1"; }
 warn()  { echo -e "${YELLOW}[WARN]${NC}  $1"; }
 error() { echo -e "${RED}[ERROR]${NC} $1"; exit 1; }
+escape_sq() { printf "%s" "$1" | sed "s/'/'\\\\''/g"; }
 
 echo ""
 echo -e "${BOLD}========================================${NC}"
@@ -152,9 +153,27 @@ else
             warn "    Invalid id; must match ^[a-z0-9-]+\$. Try again."
             continue
         fi
-        read -p "    Label (e.g. Production): " ECA_LABEL
-        read -p "    Consumer Key: " ECA_KEY
-        read -p "    Consumer Secret: " ECA_SECRET
+        ECA_LABEL=""
+        while [ -z "$ECA_LABEL" ]; do
+            read -p "    Label (e.g. Production): " ECA_LABEL
+            if [ -z "$ECA_LABEL" ]; then
+                warn "    Label is required."
+            fi
+        done
+        ECA_KEY=""
+        while [ -z "$ECA_KEY" ]; do
+            read -p "    Consumer Key: " ECA_KEY
+            if [ -z "$ECA_KEY" ]; then
+                warn "    Consumer Key is required."
+            fi
+        done
+        ECA_SECRET=""
+        while [ -z "$ECA_SECRET" ]; do
+            read -p "    Consumer Secret: " ECA_SECRET
+            if [ -z "$ECA_SECRET" ]; then
+                warn "    Consumer Secret is required."
+            fi
+        done
         echo "    Default for which org type? (optional)"
         echo "      1) Production (login.salesforce.com)"
         echo "      2) Sandbox (test.salesforce.com)"
@@ -168,12 +187,18 @@ else
             *) ECA_DEFAULT="" ;;
         esac
 
+        ECA_ID_ESC=$(escape_sq "$ECA_ID")
+        ECA_LABEL_ESC=$(escape_sq "$ECA_LABEL")
+        ECA_KEY_ESC=$(escape_sq "$ECA_KEY")
+        ECA_SECRET_ESC=$(escape_sq "$ECA_SECRET")
+        ECA_DEFAULT_ESC=$(escape_sq "$ECA_DEFAULT")
+
         cat >> "$ENV_FILE" << EOF
-SFDC_ECA_${eca_index}_ID='${ECA_ID}'
-SFDC_ECA_${eca_index}_LABEL='${ECA_LABEL}'
-SFDC_ECA_${eca_index}_KEY='${ECA_KEY}'
-SFDC_ECA_${eca_index}_SECRET='${ECA_SECRET}'
-SFDC_ECA_${eca_index}_DEFAULT_FOR='${ECA_DEFAULT}'
+SFDC_ECA_${eca_index}_ID='${ECA_ID_ESC}'
+SFDC_ECA_${eca_index}_LABEL='${ECA_LABEL_ESC}'
+SFDC_ECA_${eca_index}_KEY='${ECA_KEY_ESC}'
+SFDC_ECA_${eca_index}_SECRET='${ECA_SECRET_ESC}'
+SFDC_ECA_${eca_index}_DEFAULT_FOR='${ECA_DEFAULT_ESC}'
 
 EOF
 

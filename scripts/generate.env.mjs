@@ -15,6 +15,10 @@ function generateRandomBase64(size = 32) {
   return crypto.randomBytes(size).toString('base64');
 }
 
+function escapeSingleQuotes(value) {
+  return value.replaceAll("'", "'\\''");
+}
+
 const exampleEnvFile = fs.readFileSync(inputFilename, 'utf8');
 
 // check if .env file exists, if so ask the user if they want to overwrite it or abort
@@ -84,9 +88,27 @@ while (true) {
     console.log(chalk.red('  Invalid id; must match ^[a-z0-9-]+$'));
     continue;
   }
-  const label = (await question('  Label (e.g. Production): ')).trim();
-  const key = (await question('  Consumer Key: ')).trim();
-  const secret = (await question('  Consumer Secret: ')).trim();
+  let label = '';
+  while (!label) {
+    label = (await question('  Label (e.g. Production): ')).trim();
+    if (!label) {
+      console.log(chalk.red('  Label is required.'));
+    }
+  }
+  let key = '';
+  while (!key) {
+    key = (await question('  Consumer Key: ')).trim();
+    if (!key) {
+      console.log(chalk.red('  Consumer Key is required.'));
+    }
+  }
+  let secret = '';
+  while (!secret) {
+    secret = (await question('  Consumer Secret: ')).trim();
+    if (!secret) {
+      console.log(chalk.red('  Consumer Secret is required.'));
+    }
+  }
   console.log('  Default for which org type? (optional)');
   console.log('    1) Production (login.salesforce.com)');
   console.log('    2) Sandbox (test.salesforce.com)');
@@ -96,11 +118,11 @@ while (true) {
   const defaultFor = { 1: 'prod', 2: 'sandbox', 3: 'pre-release' }[choice] ?? '';
 
   ecaLines.push(
-    `SFDC_ECA_${ecaIndex}_ID='${id}'`,
-    `SFDC_ECA_${ecaIndex}_LABEL='${label}'`,
-    `SFDC_ECA_${ecaIndex}_KEY='${key}'`,
-    `SFDC_ECA_${ecaIndex}_SECRET='${secret}'`,
-    `SFDC_ECA_${ecaIndex}_DEFAULT_FOR='${defaultFor}'`,
+    `SFDC_ECA_${ecaIndex}_ID='${escapeSingleQuotes(id)}'`,
+    `SFDC_ECA_${ecaIndex}_LABEL='${escapeSingleQuotes(label)}'`,
+    `SFDC_ECA_${ecaIndex}_KEY='${escapeSingleQuotes(key)}'`,
+    `SFDC_ECA_${ecaIndex}_SECRET='${escapeSingleQuotes(secret)}'`,
+    `SFDC_ECA_${ecaIndex}_DEFAULT_FOR='${escapeSingleQuotes(defaultFor)}'`,
     '',
   );
   ecaIndex++;
