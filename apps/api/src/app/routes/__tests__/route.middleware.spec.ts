@@ -84,29 +84,32 @@ describe('resolveEcaForOrg', () => {
 
   it('uses the persisted ecaId when present and valid', () => {
     vi.mocked(apiConfig.getEcaById).mockReturnValue(ECA_PROD);
-    const eca = resolveEcaForOrg({ ecaId: 'prod', loginUrl: 'https://login.salesforce.com' });
-    expect(eca?.key).toBe('k1');
+    const result = resolveEcaForOrg({ ecaId: 'prod', loginUrl: 'https://login.salesforce.com' });
+    expect(result).toEqual({ eca: ECA_PROD, fallbackUsed: false });
     expect(apiConfig.getDefaultEcaForLoginUrl).not.toHaveBeenCalled();
   });
 
   it('falls back to loginUrl default when persisted ecaId is unknown', () => {
     vi.mocked(apiConfig.getEcaById).mockReturnValue(null);
     vi.mocked(apiConfig.getDefaultEcaForLoginUrl).mockReturnValue(ECA_FALLBACK);
-    const log = { warn: vi.fn() };
-    const eca = resolveEcaForOrg({ ecaId: 'gone', loginUrl: 'https://test.salesforce.com' }, log as any);
-    expect(eca?.key).toBe('k2');
-    expect(log.warn).toHaveBeenCalledWith(expect.objectContaining({ ecaId: 'gone' }), expect.any(String));
+    const result = resolveEcaForOrg({ ecaId: 'gone', loginUrl: 'https://test.salesforce.com' });
+    expect(result).toEqual({
+      eca: ECA_FALLBACK,
+      fallbackUsed: true,
+      reason: 'unknown-eca-id',
+      requestedEcaId: 'gone',
+    });
   });
 
   it('uses loginUrl default when no ecaId is persisted (legacy rows)', () => {
     vi.mocked(apiConfig.getDefaultEcaForLoginUrl).mockReturnValue(ECA_FALLBACK);
-    const eca = resolveEcaForOrg({ ecaId: null, loginUrl: 'https://test.salesforce.com' });
-    expect(eca?.key).toBe('k2');
+    const result = resolveEcaForOrg({ ecaId: null, loginUrl: 'https://test.salesforce.com' });
+    expect(result).toEqual({ eca: ECA_FALLBACK, fallbackUsed: false });
   });
 
   it('returns null when neither persisted nor default ECA resolves', () => {
     vi.mocked(apiConfig.getDefaultEcaForLoginUrl).mockReturnValue(null);
-    const eca = resolveEcaForOrg({ ecaId: null, loginUrl: 'https://login.salesforce.com' });
-    expect(eca).toBeNull();
+    const result = resolveEcaForOrg({ ecaId: null, loginUrl: 'https://login.salesforce.com' });
+    expect(result).toEqual({ eca: null, fallbackUsed: false });
   });
 });
