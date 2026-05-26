@@ -37,6 +37,7 @@ import {
   DescribeMetadataResult,
   DescribeSObjectResult,
   DomainVerification,
+  EcaPublic,
   FileNameFormat,
   GenericRequestPayload,
   GoogleFileApiResponse,
@@ -190,7 +191,9 @@ export async function createInvitation(teamId: string, data: TeamInvitationReque
 }
 
 export async function resendInvitation(teamId: string, invitationId: string): Promise<TeamInviteUserFacing[]> {
-  return handleRequest({ method: 'PUT', url: `/api/teams/${teamId}/invitations/${invitationId}`, data: {} }).then(unwrapResponseIgnoreCache);
+  return handleRequest({ method: 'PUT', url: `/api/teams/${teamId}/invitations/${invitationId}`, data: {} }).then(
+    unwrapResponseIgnoreCache,
+  );
 }
 
 export async function cancelInvitation(teamId: string, invitationId: string): Promise<void> {
@@ -264,6 +267,12 @@ export async function deleteOidcConfig(teamId: string): Promise<void> {
 
 export async function getUserProfile(): Promise<UserProfileUi> {
   return handleRequest({ method: 'GET', url: '/api/me' }).then(unwrapResponseIgnoreCache);
+}
+
+export async function getEcas(): Promise<EcaPublic[]> {
+  return handleRequest<{ ecas: EcaPublic[] }>({ method: 'GET', url: '/api/salesforce/ecas' })
+    .then(unwrapResponseIgnoreCache)
+    .then((data) => data.ecas);
 }
 
 export async function deleteUserProfile(reason?: string): Promise<void> {

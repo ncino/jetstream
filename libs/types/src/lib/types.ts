@@ -345,6 +345,12 @@ export interface SalesforceOrgUi {
 
 export type SalesforceOrgUiType = 'Sandbox' | 'Developer' | 'Production';
 
+export interface EcaPublic {
+  id: string;
+  label: string;
+  defaultFor: string[];
+}
+
 export interface GenericRequestPayload {
   url: string;
   method: HttpMethod;
