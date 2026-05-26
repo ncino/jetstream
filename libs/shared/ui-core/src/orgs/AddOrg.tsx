@@ -3,7 +3,7 @@ import { ANALYTICS_KEYS } from '@jetstream/shared/constants';
 import { getEcas } from '@jetstream/shared/data';
 import { addOrg } from '@jetstream/shared/ui-utils';
 import { AddOrgHandlerFn, EcaPublic, SalesforceOrgUi } from '@jetstream/types';
-import { Checkbox, CheckboxToggle, Grid, GridCol, Icon, Input, Popover, PopoverRef, Radio, RadioGroup } from '@jetstream/ui';
+import { Checkbox, CheckboxToggle, Grid, GridCol, Icon, Input, Popover, PopoverRef, Radio, RadioGroup, Select } from '@jetstream/ui';
 import { fromAppState } from '@jetstream/ui/app-state';
 import classNames from 'classnames';
 import { useAtomValue } from 'jotai';
@@ -106,15 +106,14 @@ export const AddOrg: FunctionComponent<AddOrgProps> = ({
     if (ecas.length === 0 || !loginUrl) {
       return;
     }
-    if (ecaUserOverridden) {
-      const stillValid = ecas.some((eca) => eca.id === ecaId);
-      if (stillValid) {
-        return;
+    setEcaId((current) => {
+      if (ecaUserOverridden && ecas.some((eca) => eca.id === current)) {
+        return current;
       }
-    }
-    const defaultEca = ecas.find((eca) => eca.defaultFor.includes(loginUrl)) ?? ecas[0];
-    setEcaId(defaultEca?.id ?? null);
-  }, [ecas, loginUrl, ecaId, ecaUserOverridden]);
+      const defaultEca = ecas.find((eca) => eca.defaultFor.includes(loginUrl)) ?? ecas[0];
+      return defaultEca?.id ?? null;
+    });
+  }, [ecas, loginUrl, ecaUserOverridden]);
 
   function handleAddOrg() {
     loginUrl &&
@@ -193,32 +192,24 @@ export const AddOrg: FunctionComponent<AddOrgProps> = ({
             />
           </RadioGroup>
 
-          <div className="slds-form-element slds-m-top_small">
-            <label className="slds-form-element__label" htmlFor="org-eca-select">
-              Connected App
-            </label>
-            <div className="slds-form-element__control">
-              <div className="slds-select_container">
-                <select
-                  id="org-eca-select"
-                  aria-label="Connected App"
-                  className="slds-select"
-                  value={ecaId ?? ''}
-                  disabled={ecas.length <= 1}
-                  onChange={(event) => {
-                    setEcaId(event.target.value);
-                    setEcaUserOverridden(true);
-                  }}
-                >
-                  {ecas.map((eca) => (
-                    <option key={eca.id} value={eca.id}>
-                      {eca.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </div>
+          <Select id="org-eca-select" label="Connected App" className="slds-m-top_small">
+            <select
+              id="org-eca-select"
+              className="slds-select"
+              value={ecaId ?? ''}
+              disabled={ecas.length <= 1}
+              onChange={(event) => {
+                setEcaId(event.target.value);
+                setEcaUserOverridden(true);
+              }}
+            >
+              {ecas.map((eca) => (
+                <option key={eca.id} value={eca.id}>
+                  {eca.label}
+                </option>
+              ))}
+            </select>
+          </Select>
 
           {orgType === 'custom' && (
             <Input

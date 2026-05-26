@@ -54,6 +54,7 @@ describe('AddOrg ECA dropdown', () => {
     render(<AddOrg onAddOrg={onAddOrg} />);
     const select = await openPopoverAndWait();
     await waitFor(() => expect(select.value).toBe('prod'));
+    expect(vi.mocked(data.getEcas)).toHaveBeenCalledTimes(1);
   });
 
   it('snaps default when the user changes org type', async () => {
