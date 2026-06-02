@@ -13,6 +13,11 @@ const destinationConfigs = {
     path: join(__dirname, '..', 'apps', 'jetstream-desktop-client', 'public', 'monaco', 'vs'),
     includeAll: true,
   },
+  web: {
+    path: join(__dirname, '..', 'apps', 'jetstream', 'src', 'assets', 'js', 'monaco', 'vs'),
+    includeAll: false,
+    includeLanguages: ['apex', 'css', 'html', 'javascript', 'json', 'xml'],
+  },
   'web-extension': {
     path: join(__dirname, '..', 'apps', 'jetstream-web-extension', 'src', 'assets', 'js', 'monaco', 'vs'),
     includeAll: false,
@@ -91,20 +96,20 @@ function main() {
 
   if (targetIndex === -1 || !args[targetIndex + 1]) {
     console.error('Error: --target flag is required');
-    console.error('Usage: node copy-monaco-assets.mjs --target <desktop|web-extension>');
+    console.error('Usage: node copy-monaco-assets.mjs --target <desktop|web|web-extension>');
     process.exit(1);
   }
 
   const target = args[targetIndex + 1];
 
-  if (!['desktop', 'web-extension'].includes(target)) {
+  if (!['desktop', 'web', 'web-extension'].includes(target)) {
     console.error(`Error: Invalid target "${target}"`);
-    console.error('Valid targets: desktop, web-extension');
+    console.error('Valid targets: desktop, web, web-extension');
     process.exit(1);
   }
 
   // Type assertion: target is validated to be one of the valid keys
-  const dest = destinationConfigs[/** @type {'desktop' | 'web-extension'} */ (target)];
+  const dest = destinationConfigs[/** @type {'desktop' | 'web' | 'web-extension'} */ (target)];
 
   console.log(`Copying Monaco Editor assets for ${target}...`);
   console.log(`\nProcessing: ${dest.path}`);
