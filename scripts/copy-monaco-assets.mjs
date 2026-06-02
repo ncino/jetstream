@@ -14,7 +14,7 @@ const destinationConfigs = {
     includeAll: true,
   },
   web: {
-    path: join(__dirname, '..', 'apps', 'jetstream', 'src', 'assets', 'js', 'monaco', 'vs'),
+    path: join(__dirname, '..', 'apps', 'jetstream', 'public', 'assets', 'js', 'monaco', 'vs'),
     includeAll: false,
     includeLanguages: ['apex', 'css', 'html', 'javascript', 'json', 'xml'],
   },

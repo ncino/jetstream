@@ -87,4 +87,4 @@ certificates
 docs/JIRA_TICKETS.md
 
 # Monaco editor assets copied from node_modules during build (see scripts/copy-monaco-assets.mjs)
-apps/jetstream/src/assets/js/monaco/
+apps/jetstream/public/assets/js/monaco/
