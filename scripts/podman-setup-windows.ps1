@@ -34,6 +34,26 @@ function Write-Info  { param($msg) Write-Host "[INFO]  $msg" -ForegroundColor Gr
 function Write-Warn  { param($msg) Write-Host "[WARN]  $msg" -ForegroundColor Yellow }
 function Write-Err   { param($msg) Write-Host "[ERROR] $msg" -ForegroundColor Red; exit 1 }
 
+function Format-EnvSingleQuoted {
+    param([string]$Value)
+    if ($null -eq $Value) {
+        return ""
+    }
+    return $Value -replace "'", "'\''"
+}
+
+# Writes UTF-8 without a BOM. Windows PowerShell 5.1's Set-Content/Add-Content
+# `-Encoding UTF8` writes a BOM that some dotenv parsers mishandle; we want the
+# .env file byte-identical to what podman-setup-mac.sh produces.
+function Write-EnvFile {
+    param([string]$Path, [string]$Content, [bool]$Append = $false)
+    if ($Append -and (Test-Path $Path)) {
+        $existing = [System.IO.File]::ReadAllText($Path, [System.Text.UTF8Encoding]::new($false))
+        $Content = $existing + $Content
+    }
+    [System.IO.File]::WriteAllText($Path, $Content, [System.Text.UTF8Encoding]::new($false))
+}
+
 Write-Host ""
 Write-Host "========================================" -ForegroundColor White
 Write-Host "  Jetstream Local Setup (Podman)" -ForegroundColor White
@@ -157,22 +177,17 @@ if (Test-Path $EnvFile) {
     Write-Host "  Press Enter at the ID prompt to stop adding ECAs."
     Write-Host ""
 
-    function Format-EnvSingleQuoted {
-        param([string]$Value)
-        if ($null -eq $Value) {
-            return ""
-        }
-        return $Value -replace "'", "'\''"
-    }
-
-    "# Salesforce External Client Apps (ECAs)" | Set-Content -Path $EnvFile -Encoding UTF8
+    Write-EnvFile -Path $EnvFile -Content "# Salesforce External Client Apps (ECAs)`n"
 
     $ecaIndex = 1
     while ($true) {
         Write-Host ""
         Write-Host "  ECA #$ecaIndex" -ForegroundColor White
         $ecaId = Read-Host "    ID (short slug, e.g. prod, ncinodev) [enter to stop]"
-        if ([string]::IsNullOrWhiteSpace($ecaId)) {
+        # Use IsNullOrEmpty (not IsNullOrWhiteSpace) so a whitespace-only ID falls
+        # through to the regex validator and gets a clear "Invalid id" warning,
+        # matching the bash script's `[ -z "$ECA_ID" ]` behavior.
+        if ([string]::IsNullOrEmpty($ecaId)) {
             break
         }
         if ($ecaId -notmatch '^[a-z0-9-]+$') {
@@ -231,7 +246,7 @@ SFDC_ECA_${ecaIndex}_SECRET='$secretEsc'
 SFDC_ECA_${ecaIndex}_DEFAULT_FOR='$defaultEsc'
 
 "@
-        Add-Content -Path $EnvFile -Value $ecaBlock -Encoding UTF8
+        Write-EnvFile -Path $EnvFile -Content $ecaBlock -Append $true
 
         Write-Info "    Saved ECA #$ecaIndex ($ecaId)"
         $ecaIndex++
@@ -251,7 +266,7 @@ SFDC_ECA_1_KEY='placeholder-get-key-from-your-team'
 SFDC_ECA_1_SECRET='placeholder-get-secret-from-your-team'
 SFDC_ECA_1_DEFAULT_FOR=''
 "@
-        Add-Content -Path $EnvFile -Value $placeholderBlock -Encoding UTF8
+        Write-EnvFile -Path $EnvFile -Content $placeholderBlock -Append $true
     }
 }
 
