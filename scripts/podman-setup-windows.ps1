@@ -7,7 +7,7 @@
     Automates the entire setup process:
       1. Validates prerequisites (Podman, cert file)
       2. Configures the Podman machine (memory, Zscaler cert, DNS)
-      3. Prompts for Salesforce OAuth credentials
+      3. Prompts for Salesforce OAuth credentials (one or more ECAs)
       4. Builds the Jetstream container image
       5. Starts Jetstream
 
@@ -16,7 +16,7 @@
       - Podman Desktop installed (https://podman-desktop.io)
       - ZscalerRoot-FullBundle.pem in the project root directory
       - Salesforce OAuth credentials from the shared 1Password vault
-        (entry: "Jetstream Local Credentials")
+        (one entry per Connected App / ECA, under "Jetstream Local Credentials")
 
 .EXAMPLE
     .\scripts\podman-setup-windows.ps1
@@ -33,6 +33,26 @@ $PodmanMemory = 6144
 function Write-Info  { param($msg) Write-Host "[INFO]  $msg" -ForegroundColor Green }
 function Write-Warn  { param($msg) Write-Host "[WARN]  $msg" -ForegroundColor Yellow }
 function Write-Err   { param($msg) Write-Host "[ERROR] $msg" -ForegroundColor Red; exit 1 }
+
+function Format-EnvSingleQuoted {
+    param([string]$Value)
+    if ($null -eq $Value) {
+        return ""
+    }
+    return $Value -replace "'", "'\''"
+}
+
+# Writes UTF-8 without a BOM. Windows PowerShell 5.1's Set-Content/Add-Content
+# `-Encoding UTF8` writes a BOM that some dotenv parsers mishandle; we want the
+# .env file byte-identical to what podman-setup-mac.sh produces.
+function Write-EnvFile {
+    param([string]$Path, [string]$Content, [bool]$Append = $false)
+    if ($Append -and (Test-Path $Path)) {
+        $existing = [System.IO.File]::ReadAllText($Path, [System.Text.UTF8Encoding]::new($false))
+        $Content = $existing + $Content
+    }
+    [System.IO.File]::WriteAllText($Path, $Content, [System.Text.UTF8Encoding]::new($false))
+}
 
 Write-Host ""
 Write-Host "========================================" -ForegroundColor White
@@ -151,29 +171,103 @@ if (Test-Path $EnvFile) {
     Write-Info "  Credentials file (.env) already exists, keeping existing values"
 } else {
     Write-Host ""
-    Write-Host "  To connect Salesforce orgs, you need OAuth credentials." -ForegroundColor White
+    Write-Host "  To connect Salesforce orgs, you need OAuth credentials (one ECA per Salesforce org that hosts a Connected App)." -ForegroundColor White
     Write-Host "  Find them in the shared 1Password vault: 'Jetstream Local Credentials'" -ForegroundColor White
     Write-Host ""
-    Write-Host "  If you don't have them yet, press Enter to skip."
-    Write-Host "  You can add them later by editing the .env file."
+    Write-Host "  Press Enter at the ID prompt to stop adding ECAs."
     Write-Host ""
 
-    $sfdcKey = Read-Host "  Salesforce Consumer Key"
-    $sfdcSecret = Read-Host "  Salesforce Consumer Secret"
+    Write-EnvFile -Path $EnvFile -Content "# Salesforce External Client Apps (ECAs)`n"
 
-    if ([string]::IsNullOrWhiteSpace($sfdcKey) -or [string]::IsNullOrWhiteSpace($sfdcSecret)) {
-        Write-Warn "  Skipping - you can add credentials later by editing .env"
-        $sfdcKey = "placeholder-get-key-from-your-team"
-        $sfdcSecret = "placeholder-get-secret-from-your-team"
-    } else {
-        Write-Info "  Credentials saved"
+    $ecaIndex = 1
+    while ($true) {
+        Write-Host ""
+        Write-Host "  ECA #$ecaIndex" -ForegroundColor White
+        $ecaId = Read-Host "    ID (short slug, e.g. prod, ncinodev) [enter to stop]"
+        # Use IsNullOrEmpty (not IsNullOrWhiteSpace) so a whitespace-only ID falls
+        # through to the regex validator and gets a clear "Invalid id" warning,
+        # matching the bash script's `[ -z "$ECA_ID" ]` behavior.
+        if ([string]::IsNullOrEmpty($ecaId)) {
+            break
+        }
+        if ($ecaId -notmatch '^[a-z0-9-]+$') {
+            Write-Warn '    Invalid id; must match ^[a-z0-9-]+$. Try again.'
+            continue
+        }
+
+        $ecaLabel = ""
+        while ([string]::IsNullOrWhiteSpace($ecaLabel)) {
+            $ecaLabel = Read-Host "    Label (e.g. Production)"
+            if ([string]::IsNullOrWhiteSpace($ecaLabel)) {
+                Write-Warn "    Label is required."
+            }
+        }
+
+        $ecaKey = ""
+        while ([string]::IsNullOrWhiteSpace($ecaKey)) {
+            $ecaKey = Read-Host "    Consumer Key"
+            if ([string]::IsNullOrWhiteSpace($ecaKey)) {
+                Write-Warn "    Consumer Key is required."
+            }
+        }
+
+        $ecaSecret = ""
+        while ([string]::IsNullOrWhiteSpace($ecaSecret)) {
+            $ecaSecret = Read-Host "    Consumer Secret"
+            if ([string]::IsNullOrWhiteSpace($ecaSecret)) {
+                Write-Warn "    Consumer Secret is required."
+            }
+        }
+
+        Write-Host "    Default for which org type? (optional)"
+        Write-Host "      1) Production (login.salesforce.com)"
+        Write-Host "      2) Sandbox (test.salesforce.com)"
+        Write-Host "      3) Pre-release (prerellogin.pre.salesforce.com)"
+        Write-Host "      4) None"
+        $ecaDefaultChoice = Read-Host "    Choice [4]"
+        $ecaDefault = switch ($ecaDefaultChoice) {
+            "1"     { "prod" }
+            "2"     { "sandbox" }
+            "3"     { "pre-release" }
+            default { "" }
+        }
+
+        $idEsc = Format-EnvSingleQuoted $ecaId
+        $labelEsc = Format-EnvSingleQuoted $ecaLabel
+        $keyEsc = Format-EnvSingleQuoted $ecaKey
+        $secretEsc = Format-EnvSingleQuoted $ecaSecret
+        $defaultEsc = Format-EnvSingleQuoted $ecaDefault
+
+        $ecaBlock = @"
+SFDC_ECA_${ecaIndex}_ID='$idEsc'
+SFDC_ECA_${ecaIndex}_LABEL='$labelEsc'
+SFDC_ECA_${ecaIndex}_KEY='$keyEsc'
+SFDC_ECA_${ecaIndex}_SECRET='$secretEsc'
+SFDC_ECA_${ecaIndex}_DEFAULT_FOR='$defaultEsc'
+
+"@
+        Write-EnvFile -Path $EnvFile -Content $ecaBlock -Append $true
+
+        Write-Info "    Saved ECA #$ecaIndex ($ecaId)"
+        $ecaIndex++
+
+        $addAnother = Read-Host "  Add another ECA? (y/N)"
+        if ($addAnother -notmatch '^[yY]$') {
+            break
+        }
     }
 
-    @"
-# Salesforce OAuth credentials (from 1Password: "Jetstream Local Credentials")
-SFDC_CONSUMER_KEY='$sfdcKey'
-SFDC_CONSUMER_SECRET='$sfdcSecret'
-"@ | Set-Content -Path $EnvFile -Encoding UTF8 -NoNewline
+    if ($ecaIndex -eq 1) {
+        Write-Warn "  No ECAs configured - adding placeholders so the app can boot."
+        $placeholderBlock = @"
+SFDC_ECA_1_ID='placeholder'
+SFDC_ECA_1_LABEL='Placeholder'
+SFDC_ECA_1_KEY='placeholder-get-key-from-your-team'
+SFDC_ECA_1_SECRET='placeholder-get-secret-from-your-team'
+SFDC_ECA_1_DEFAULT_FOR=''
+"@
+        Write-EnvFile -Path $EnvFile -Content $placeholderBlock -Append $true
+    }
 }
 
 # ------------------------------------------------------------------
