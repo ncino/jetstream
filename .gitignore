@@ -85,3 +85,6 @@ certificates
 **/.sf/
 **/.sfdx/
 docs/JIRA_TICKETS.md
+
+# Monaco editor assets copied from node_modules during build (see scripts/copy-monaco-assets.mjs)
+apps/jetstream/public/assets/js/monaco/
