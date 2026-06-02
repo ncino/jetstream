@@ -1,8 +1,9 @@
 import { css } from '@emotion/react';
 import { ANALYTICS_KEYS } from '@jetstream/shared/constants';
+import { getEcas } from '@jetstream/shared/data';
 import { addOrg } from '@jetstream/shared/ui-utils';
-import { AddOrgHandlerFn, SalesforceOrgUi } from '@jetstream/types';
-import { Checkbox, CheckboxToggle, Grid, GridCol, Icon, Input, Popover, PopoverRef, Radio, RadioGroup } from '@jetstream/ui';
+import { AddOrgHandlerFn, EcaPublic, SalesforceOrgUi } from '@jetstream/types';
+import { Checkbox, CheckboxToggle, Grid, GridCol, Icon, Input, Popover, PopoverRef, Radio, RadioGroup, Select } from '@jetstream/ui';
 import { fromAppState } from '@jetstream/ui/app-state';
 import classNames from 'classnames';
 import { useAtomValue } from 'jotai';
@@ -69,6 +70,9 @@ export const AddOrg: FunctionComponent<AddOrgProps> = ({
   const [advancedOptionsEnabled, setAdvancedOptionsEnabled] = useState(false);
   const [addLoginTrue, setAddLoginTrue] = useState(false);
   const [addToActiveOrgGroup, setAddToActiveOrgGroup] = useState(true);
+  const [ecas, setEcas] = useState<EcaPublic[]>([]);
+  const [ecaId, setEcaId] = useState<string | null>(null);
+  const [ecaUserOverridden, setEcaUserOverridden] = useState(false);
   const applicationState = useAtomValue(fromAppState.applicationCookieState);
   const orgGroup = useAtomValue(fromAppState.jetstreamActiveGroupSelector);
 
@@ -82,12 +86,42 @@ export const AddOrg: FunctionComponent<AddOrgProps> = ({
     setLoginUrl(url);
   }, [orgType, customUrl]);
 
+  useEffect(() => {
+    let cancelled = false;
+    getEcas()
+      .then((fetchedEcas) => {
+        if (!cancelled) {
+          setEcas(fetchedEcas);
+        }
+      })
+      .catch((error) => {
+        console.warn('Failed to load ECAs for AddOrg', error);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (ecas.length === 0 || !loginUrl) {
+      return;
+    }
+    setEcaId((current) => {
+      if (ecaUserOverridden && ecas.some((eca) => eca.id === current)) {
+        return current;
+      }
+      const defaultEca = ecas.find((eca) => eca.defaultFor.includes(loginUrl)) ?? ecas[0];
+      return defaultEca?.id ?? null;
+    });
+  }, [ecas, loginUrl, ecaUserOverridden]);
+
   function handleAddOrg() {
     loginUrl &&
       onAddOrgHandlerFn(
         {
           serverUrl: applicationState.serverUrl,
           loginUrl,
+          ecaId: ecaId ?? undefined,
           addLoginTrue: advancedOptionsEnabled && addLoginTrue,
           orgGroupId: addToActiveOrgGroup ? orgGroup?.id : null,
           loginHint: existingOrg?.username,
@@ -115,6 +149,7 @@ export const AddOrg: FunctionComponent<AddOrgProps> = ({
     setAdvancedOptionsEnabled(false);
     setAddLoginTrue(false);
     setAddToActiveOrgGroup(true);
+    setEcaUserOverridden(false);
   }
 
   return (
@@ -156,6 +191,25 @@ export const AddOrg: FunctionComponent<AddOrgProps> = ({
               onChange={() => setOrgType('custom')}
             />
           </RadioGroup>
+
+          <Select id="org-eca-select" label="Connected App" className="slds-m-top_small">
+            <select
+              id="org-eca-select"
+              className="slds-select"
+              value={ecaId ?? ''}
+              disabled={ecas.length <= 1}
+              onChange={(event) => {
+                setEcaId(event.target.value);
+                setEcaUserOverridden(true);
+              }}
+            >
+              {ecas.map((eca) => (
+                <option key={eca.id} value={eca.id}>
+                  {eca.label}
+                </option>
+              ))}
+            </select>
+          </Select>
 
           {orgType === 'custom' && (
             <Input

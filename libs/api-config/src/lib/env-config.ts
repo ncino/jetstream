@@ -6,6 +6,7 @@ import { readFileSync } from 'fs-extra';
 import isNumber from 'lodash/isNumber';
 import { join } from 'path';
 import { z } from 'zod';
+import { getEcaRegistry } from './eca-registry';
 
 dotenv.config();
 
@@ -203,8 +204,12 @@ const envSchema = z.object({
    * Connected App OAuth2 for connecting orgs
    */
   SFDC_API_VERSION: z.string().regex(/^[0-9]{2,4}\.[0-9]$/),
-  SFDC_CONSUMER_SECRET: z.string().min(1),
-  SFDC_CONSUMER_KEY: z.string().min(1),
+  // Legacy single-ECA back-compat shim. Prefer SFDC_ECA_N_* vars; see eca-registry.ts.
+  SFDC_CONSUMER_SECRET: z.string().optional().default(''),
+  SFDC_CONSUMER_KEY: z.string().optional().default(''),
+  // Used only to decrypt legacy v1-encrypted access tokens. Set to the SFDC_CONSUMER_SECRET
+  // value that was active when those tokens were written.
+  SFDC_LEGACY_CONSUMER_SECRET: z.string().optional().default(''),
   SFDC_CALLBACK_URL: z.url(),
   // Should be a base64-encoded 32-byte key (generate with: openssl rand -base64 32)
   SFDC_ENCRYPTION_KEY: z.string().min(44, {
@@ -292,3 +297,13 @@ ${chalk.yellow(JSON.stringify(z.treeifyError(parseResults.error), null, 2))}
 
 export type Env = z.infer<typeof envSchema>;
 export const ENV: Env = parseResults.data;
+
+// Validate ECA registry at startup so misconfiguration fails fast.
+try {
+  getEcaRegistry();
+} catch (error) {
+  console.error(`❌ ${chalk.red('Error loading Salesforce ECA registry:')}
+${chalk.yellow(error instanceof Error ? error.message : String(error))}
+`);
+  process.exit(1);
+}

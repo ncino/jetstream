@@ -1,6 +1,6 @@
 import { decryptString, encryptString } from '@jetstream/shared/node-utils';
-import { Mock, vi } from 'vitest';
-import { decryptAccessToken, encryptAccessToken } from '../salesforce-org-encryption.service';
+import { beforeEach, describe, expect, it, Mock, vi } from 'vitest';
+import { decryptAccessToken, DUMMY_INVALID_ENCRYPTED_TOKEN, encryptAccessToken } from '../salesforce-org-encryption.service';
 
 vi.mock('@jetstream/shared/node-utils', () => ({
   encryptString: vi.fn(),
@@ -16,16 +16,20 @@ vi.mock('@jetstream/api-config', () => ({
     SFDC_ENCRYPTION_CACHE_TTL_MS: 3600000,
     SFDC_ENCRYPTION_ITERATIONS: 10000,
     SFDC_CONSUMER_SECRET: 'legacy-secret',
+    LOG_LEVEL: 'silent',
   },
-  logger: { error: vi.fn() },
+  logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
   rollbarServer: { error: vi.fn() },
-  getExceptionLog: vi.fn((err) => ({ message: err.message })),
+  getExceptionLog: vi.fn((err) => ({ message: err?.message })),
+  getLegacyConsumerSecret: vi.fn(),
   DbCacheProvider: vi.fn().mockImplementation(function () {
     this.saveAsync = vi.fn().mockResolvedValue(null);
     this.getAsync = vi.fn().mockResolvedValue(null);
     this.removeAsync = vi.fn().mockResolvedValue(null);
   }),
 }));
+
+import * as apiConfig from '@jetstream/api-config';
 
 describe('salesforce-org-encryption.service', () => {
   const userId = 'user123';
@@ -73,6 +77,8 @@ describe('salesforce-org-encryption.service', () => {
 
     it('should decrypt legacy tokens and return access/refresh tokens', async () => {
       const legacyEncrypted = 'legacy-encrypted-token';
+      // Source now resolves the legacy key via getLegacyConsumerSecret()
+      vi.mocked(apiConfig.getLegacyConsumerSecret).mockReturnValue('legacy-secret');
       // Mock decryptString for legacy
       (decryptString as Mock).mockReturnValueOnce(`${accessToken} ${refreshToken}`);
 
@@ -96,6 +102,7 @@ describe('salesforce-org-encryption.service', () => {
 
     it('should return ["invalid", "invalid"] if legacy decryption fails', async () => {
       // legacy format, decryptString throws
+      vi.mocked(apiConfig.getLegacyConsumerSecret).mockReturnValue('legacy-secret');
       (decryptString as Mock).mockImplementation(() => {
         throw new Error('legacy decryption failed');
       });
@@ -113,5 +120,41 @@ describe('salesforce-org-encryption.service', () => {
 
       expect(result).toEqual(['invalid', 'invalid']);
     });
+  });
+});
+
+describe('decryptAccessToken (v1 legacy path - multi-ECA)', () => {
+  const userId = 'user123';
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(apiConfig.getLegacyConsumerSecret).mockReset();
+  });
+
+  it('decrypts using SFDC_LEGACY_CONSUMER_SECRET when present', async () => {
+    vi.mocked(apiConfig.getLegacyConsumerSecret).mockReturnValue('legacy');
+    (decryptString as Mock).mockReturnValue('access refresh');
+
+    const [access, refresh] = await decryptAccessToken({
+      encryptedAccessToken: 'legacy-payload',
+      userId,
+    });
+
+    // hexToBase64 is mocked as identity, so the legacy key is passed through unchanged
+    expect(decryptString).toHaveBeenCalledWith('legacy-payload', 'legacy');
+    expect(access).toBe('access');
+    expect(refresh).toBe('refresh');
+  });
+
+  it('returns DUMMY_INVALID_ENCRYPTED_TOKEN when SFDC_LEGACY_CONSUMER_SECRET is unset', async () => {
+    vi.mocked(apiConfig.getLegacyConsumerSecret).mockReturnValue(null);
+
+    const [access, refresh] = await decryptAccessToken({
+      encryptedAccessToken: 'legacy-payload',
+      userId,
+    });
+
+    expect(access).toBe(DUMMY_INVALID_ENCRYPTED_TOKEN);
+    expect(refresh).toBe(DUMMY_INVALID_ENCRYPTED_TOKEN);
   });
 });

@@ -134,7 +134,40 @@ If you want to create your own:
          3. Manage user data via APIs `api`
          4. Perform requests at any time `refresh_token, offline_access`
       3. All other defaults are fine
-3. Update the file named `.env` and replace `SFDC_CONSUMER_KEY` and `SFDC_CONSUMER_SECRET` with the values from your connected app.
+3. Update the file named `.env` with the values from your connected app — see the next section for the multi-ECA configuration.
+
+#### Salesforce Connected Apps (ECAs)
+
+Each Salesforce org that hosts a Connected App requires its own ECA entry in `.env`.
+Configure them as numbered env vars:
+
+```bash
+SFDC_ECA_1_ID='prod'
+SFDC_ECA_1_LABEL='Production'
+SFDC_ECA_1_KEY='3MVG9...'
+SFDC_ECA_1_SECRET='...'
+SFDC_ECA_1_DEFAULT_FOR='prod'
+
+SFDC_ECA_2_ID='ncinodev'
+SFDC_ECA_2_LABEL='nCino Dev Sandbox'
+SFDC_ECA_2_KEY='3MVG9...'
+SFDC_ECA_2_SECRET='...'
+SFDC_ECA_2_DEFAULT_FOR='sandbox'
+```
+
+`DEFAULT_FOR` accepts the tokens `prod`, `sandbox`, `pre-release`, or full
+`https://*.my.salesforce.com` URLs (comma-separated). The AddOrg form auto-selects
+the first ECA whose `DEFAULT_FOR` includes the chosen login URL; users can override
+via the **Connected App** dropdown.
+
+**Single-ECA back-compat:** if only `SFDC_CONSUMER_KEY` and `SFDC_CONSUMER_SECRET`
+are set, they are auto-registered as a synthetic `default` ECA. Mixing legacy and
+numbered vars is rejected at server startup.
+
+**Legacy v1 tokens:** access tokens written before the multi-ECA migration are
+encrypted with the old single `SFDC_CONSUMER_SECRET`. To keep them decryptable
+across the migration, set `SFDC_LEGACY_CONSUMER_SECRET` to that previous value.
+Tokens written after the migration are unaffected.
 
 ### Building
 

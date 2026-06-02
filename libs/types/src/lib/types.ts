@@ -319,6 +319,7 @@ export interface SalesforceOrgUi {
   accessToken: string;
   instanceUrl: string;
   loginUrl: string;
+  ecaId?: Maybe<string>;
   userId: string;
   email: string;
   organizationId: string;
@@ -343,6 +344,12 @@ export interface SalesforceOrgUi {
 }
 
 export type SalesforceOrgUiType = 'Sandbox' | 'Developer' | 'Production';
+
+export interface EcaPublic {
+  id: string;
+  label: string;
+  defaultFor: string[];
+}
 
 export interface GenericRequestPayload {
   url: string;
@@ -423,7 +430,14 @@ export interface FormulaFieldsByType {
 }
 
 export type AddOrgHandlerFn = (
-  options: { serverUrl: string; loginUrl: string; addLoginTrue?: boolean; orgGroupId?: Maybe<string>; loginHint?: string },
+  options: {
+    serverUrl: string;
+    loginUrl: string;
+    ecaId?: string;
+    addLoginTrue?: boolean;
+    orgGroupId?: Maybe<string>;
+    loginHint?: string;
+  },
   callback: (org: SalesforceOrgUi) => void,
 ) => void;
 

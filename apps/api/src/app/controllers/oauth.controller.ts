@@ -1,4 +1,4 @@
-import { ENV, getExceptionLog, logger } from '@jetstream/api-config';
+import { ENV, getDefaultEcaForLoginUrl, getEcaById, getExceptionLog, logger } from '@jetstream/api-config';
 import { ApiConnection, ApiRequestError, getApiRequestFactoryFn } from '@jetstream/salesforce-api';
 import * as oauthService from '@jetstream/salesforce-oauth';
 import { ERROR_MESSAGES } from '@jetstream/shared/constants';
@@ -31,6 +31,7 @@ export const routeDefinition = {
           z.literal('https://prerellogin.pre.salesforce.com'),
           z.string().regex(/^https:\/\/[a-zA-Z0-9.-]+\.my\.salesforce\.com$/),
         ]),
+        ecaId: z.string().optional(),
         addLoginParam: z
           .enum(['true', 'false'])
           .optional()
@@ -58,16 +59,29 @@ export const routeDefinition = {
  * @param res
  */
 const salesforceOauthInitAuth = createRoute(routeDefinition.salesforceOauthInitAuth.validators, async ({ query }, req, res) => {
-  const { loginUrl, addLoginParam, loginHint, jetstreamOrganizationId, orgGroupId } = query;
+  const { loginUrl, ecaId, addLoginParam, loginHint, jetstreamOrganizationId, orgGroupId } = query;
+
+  const eca = ecaId ? getEcaById(ecaId) : getDefaultEcaForLoginUrl(loginUrl);
+  if (!eca) {
+    throw new Error(`Unknown ecaId: ${ecaId ?? '(none)'}`);
+  }
+
   const { authorizationUrl, code_verifier, nonce, state } = await oauthService.salesforceOauthInit({
-    clientId: ENV.SFDC_CONSUMER_KEY,
-    clientSecret: ENV.SFDC_CONSUMER_SECRET,
+    clientId: eca.key,
+    clientSecret: eca.secret,
     redirectUri: ENV.SFDC_CALLBACK_URL,
     loginUrl,
     addLoginParam,
     loginHint,
   });
-  req.session.orgAuth = { code_verifier, nonce, state, loginUrl, orgGroupId: orgGroupId || jetstreamOrganizationId };
+  req.session.orgAuth = {
+    code_verifier,
+    nonce,
+    state,
+    loginUrl,
+    orgGroupId: orgGroupId || jetstreamOrganizationId,
+    ecaId: eca.id,
+  };
   res.redirect(authorizationUrl.toString());
 });
 
@@ -108,12 +122,21 @@ const salesforceOauthCallback = createRoute(
         return res.redirect(`/oauth-link/?${new URLSearchParams(returnParams as any).toString().replaceAll('+', '%20')}`);
       }
 
-      const { code_verifier, nonce, state, loginUrl, orgGroupId } = orgAuth;
+      const { code_verifier, nonce, state, loginUrl, orgGroupId, ecaId } = orgAuth;
+
+      const eca = getEcaById(ecaId);
+      if (!eca) {
+        returnParams.error = 'Authentication Error';
+        returnParams.message = `The connected app (${ecaId}) is no longer configured. Reconnect using a current connected app.`;
+        req.log.info({ ecaId, requestId: res.locals.requestId }, '[OAUTH][ERROR] ECA from session no longer exists');
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return res.redirect(`/oauth-link/?${new URLSearchParams(returnParams as any).toString().replaceAll('+', '%20')}`);
+      }
 
       const { access_token, refresh_token, userInfo } = await oauthService.salesforceOauthCallback(
         {
-          clientId: ENV.SFDC_CONSUMER_KEY,
-          clientSecret: ENV.SFDC_CONSUMER_SECRET,
+          clientId: eca.key,
+          clientSecret: eca.secret,
           redirectUri: ENV.SFDC_CALLBACK_URL,
           loginUrl,
         },
@@ -142,6 +165,7 @@ const salesforceOauthCallback = createRoute(
         jetstreamConn,
         userId: user.id,
         orgGroupId,
+        ecaId: eca.id,
       });
 
       returnParams.data = JSON.stringify(salesforceOrg);
@@ -179,10 +203,12 @@ export async function initConnectionFromOAuthResponse({
   jetstreamConn,
   userId,
   orgGroupId,
+  ecaId,
 }: {
   jetstreamConn: ApiConnection;
   userId: string;
   orgGroupId?: Maybe<string>;
+  ecaId?: Maybe<string>;
 }) {
   const identity = await jetstreamConn.org.identity();
   let companyInfoRecord: SObjectOrganization | undefined;
@@ -214,6 +240,7 @@ export async function initConnectionFromOAuthResponse({
     accessToken: encryptedTokens,
     instanceUrl: jetstreamConn.sessionInfo.instanceUrl,
     loginUrl: jetstreamConn.sessionInfo.instanceUrl,
+    ecaId,
     userId: identity.user_id,
     email: identity.email,
     organizationId: identity.organization_id,

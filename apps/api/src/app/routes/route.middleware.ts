@@ -1,4 +1,4 @@
-import { createRateLimit, ENV, getExceptionLog, logger } from '@jetstream/api-config';
+import { createRateLimit, type EcaConfig, ENV, getDefaultEcaForLoginUrl, getEcaById, getExceptionLog, logger } from '@jetstream/api-config';
 import {
   AuthError,
   checkUserAgentSimilarity,
@@ -339,6 +339,30 @@ export async function getOrgFromHeaderOrQuery(
   return getOrgForRequest(user, uniqueId, res.log || req.log || logger, apiVersion, includeCallOptions, requestId);
 }
 
+export type ResolveEcaResult =
+  | { eca: EcaConfig; fallbackUsed: false }
+  | { eca: EcaConfig; fallbackUsed: true; reason: 'unknown-eca-id'; requestedEcaId: string }
+  | { eca: null; fallbackUsed: false };
+
+export function resolveEcaForOrg(org: { ecaId: string | null; loginUrl: string }): ResolveEcaResult {
+  if (org.ecaId) {
+    const eca = getEcaById(org.ecaId);
+    if (eca) {
+      return { eca, fallbackUsed: false };
+    }
+    const fallback = getDefaultEcaForLoginUrl(org.loginUrl);
+    if (fallback) {
+      return { eca: fallback, fallbackUsed: true, reason: 'unknown-eca-id', requestedEcaId: org.ecaId };
+    }
+    return { eca: null, fallbackUsed: false };
+  }
+  const fallback = getDefaultEcaForLoginUrl(org.loginUrl);
+  if (fallback) {
+    return { eca: fallback, fallbackUsed: false };
+  }
+  return { eca: null, fallbackUsed: false };
+}
+
 export async function getOrgForRequest(
   user: UserProfileSession,
   uniqueId: string,
@@ -407,6 +431,25 @@ export async function getOrgForRequest(
     }
   };
 
+  const ecaResolution = resolveEcaForOrg({ ecaId: org.ecaId, loginUrl: org.loginUrl });
+  if (!ecaResolution.eca) {
+    throw new Error(`No ECA available for org ${org.uniqueId} (loginUrl=${org.loginUrl})`);
+  }
+  if (ecaResolution.fallbackUsed) {
+    logger.warn(
+      {
+        orgId: org.id,
+        userId: user.id,
+        requestId,
+        requestedEcaId: ecaResolution.requestedEcaId,
+        fallbackEcaId: ecaResolution.eca.id,
+        loginUrl: org.loginUrl,
+      },
+      '[ORG][ECA] Persisted ecaId not found in registry; falling back to loginUrl default',
+    );
+  }
+  const eca = ecaResolution.eca;
+
   const jetstreamConn = new ApiConnection(
     {
       apiRequestAdapter: getApiRequestFactoryFn(fetch),
@@ -419,8 +462,8 @@ export async function getOrgForRequest(
       refreshToken,
       logging: ENV.LOG_LEVEL === 'trace',
       logger,
-      sfdcClientId: ENV.SFDC_CONSUMER_KEY,
-      sfdcClientSecret: ENV.SFDC_CONSUMER_SECRET,
+      sfdcClientId: eca.key,
+      sfdcClientSecret: eca.secret,
     },
     handleRefresh,
     handleConnectionError,

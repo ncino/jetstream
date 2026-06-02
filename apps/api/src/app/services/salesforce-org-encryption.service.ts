@@ -1,4 +1,4 @@
-import { ENV, getExceptionLog, logger, rollbarServer } from '@jetstream/api-config';
+import { ENV, getExceptionLog, getLegacyConsumerSecret, logger, rollbarServer } from '@jetstream/api-config';
 import { decryptString, encryptString, hexToBase64 } from '@jetstream/shared/node-utils';
 import { createHash, pbkdf2, randomBytes } from 'crypto';
 import { LRUCache } from 'lru-cache';
@@ -22,7 +22,7 @@ const keyCache = new LRUCache<string, string>({
 
 /**
  * Encryption versions
- * - v1: Legacy encryption using SFDC_CONSUMER_SECRET
+ * - v1: Legacy encryption using SFDC_LEGACY_CONSUMER_SECRET (or the original SFDC_CONSUMER_SECRET if running in back-compat mode)
  * - v2: Per-user encryption with derived keys
  */
 export const EncryptionVersion = {
@@ -130,7 +130,11 @@ export async function decryptAccessToken({
 
     // Legacy format - decrypt with old method
     try {
-      const decrypted = decryptString(encryptedAccessToken, hexToBase64(ENV.SFDC_CONSUMER_SECRET));
+      const legacySecret = getLegacyConsumerSecret();
+      if (!legacySecret) {
+        throw new Error('Legacy consumer secret not configured (SFDC_LEGACY_CONSUMER_SECRET)');
+      }
+      const decrypted = decryptString(encryptedAccessToken, hexToBase64(legacySecret));
       const [accessToken, refreshToken] = decrypted.split(' ');
       return [accessToken, refreshToken];
     } catch (error) {

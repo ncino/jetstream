@@ -15,6 +15,10 @@ function generateRandomBase64(size = 32) {
   return crypto.randomBytes(size).toString('base64');
 }
 
+function escapeSingleQuotes(value) {
+  return value.replaceAll("'", "'\\''");
+}
+
 const exampleEnvFile = fs.readFileSync(inputFilename, 'utf8');
 
 // check if .env file exists, if so ask the user if they want to overwrite it or abort
@@ -71,25 +75,78 @@ if (enableExampleUser === 'true') {
   console.log(chalk.greenBright(parsedEnvFile.EXAMPLE_USER_PASSWORD));
 }
 
+const ecaLines = [];
+let ecaIndex = 1;
+console.log(chalk.green('\nConfigure Salesforce External Client Apps (ECAs). Press Enter at the ID prompt to stop.'));
+while (true) {
+  console.log(chalk.green(`\nECA #${ecaIndex}`));
+  const id = (await question('  ID (short slug, e.g. prod, ncinodev) [enter to stop]: ')).trim();
+  if (!id) {
+    break;
+  }
+  if (!/^[a-z0-9-]+$/.test(id)) {
+    console.log(chalk.red('  Invalid id; must match ^[a-z0-9-]+$'));
+    continue;
+  }
+  let label = '';
+  while (!label) {
+    label = (await question('  Label (e.g. Production): ')).trim();
+    if (!label) {
+      console.log(chalk.red('  Label is required.'));
+    }
+  }
+  let key = '';
+  while (!key) {
+    key = (await question('  Consumer Key: ')).trim();
+    if (!key) {
+      console.log(chalk.red('  Consumer Key is required.'));
+    }
+  }
+  let secret = '';
+  while (!secret) {
+    secret = (await question('  Consumer Secret: ')).trim();
+    if (!secret) {
+      console.log(chalk.red('  Consumer Secret is required.'));
+    }
+  }
+  console.log('  Default for which org type? (optional)');
+  console.log('    1) Production (login.salesforce.com)');
+  console.log('    2) Sandbox (test.salesforce.com)');
+  console.log('    3) Pre-release (prerellogin.pre.salesforce.com)');
+  console.log('    4) None');
+  const choice = (await question('  Choice [4]: ')).trim();
+  const defaultFor = { 1: 'prod', 2: 'sandbox', 3: 'pre-release' }[choice] ?? '';
+
+  ecaLines.push(
+    `SFDC_ECA_${ecaIndex}_ID='${escapeSingleQuotes(id)}'`,
+    `SFDC_ECA_${ecaIndex}_LABEL='${escapeSingleQuotes(label)}'`,
+    `SFDC_ECA_${ecaIndex}_KEY='${escapeSingleQuotes(key)}'`,
+    `SFDC_ECA_${ecaIndex}_SECRET='${escapeSingleQuotes(secret)}'`,
+    `SFDC_ECA_${ecaIndex}_DEFAULT_FOR='${escapeSingleQuotes(defaultFor)}'`,
+    '',
+  );
+  ecaIndex++;
+
+  const more = (await question('Add another ECA? (y/N) ')).trim().toLowerCase();
+  if (more !== 'y') {
+    break;
+  }
+}
+
+const finalEnvFile = ecaLines.length > 0 ? newEnvFile + '\n' + ecaLines.join('\n') : newEnvFile;
+
 console.log(
   chalk.yellowBright(`
-You need to manually populate the following values in your .env file:
+You may still need to manually populate the following values in your .env file:
 
-${chalk.greenBright(`Create a connected app in Salesforce with OAuth enabled`)}
-${chalk.greenBright(`Use the scopes: profile email openid api refresh_token offline_access`)}
-${chalk.greenBright(`Get the client id and client secret and use for the following values:`)}
+${chalk.greenBright(`Salesforce login (Connected App for app authentication, separate from per-org ECAs above):`)}
+AUTH_SFDC_CLIENT_ID
+AUTH_SFDC_CLIENT_SECRET
 
-SFDC_CONSUMER_KEY="YOUR_SFDC_CONSUMER_KEY"
-SFDC_CONSUMER_SECRET="YOUR_SFDC_CONSUMER_SECRET"
-
-AUTH_SFDC_CLIENT_ID="YOUR_SFDC_CONSUMER_KEY"
-AUTH_SFDC_CLIENT_SECRET="YOUR_SFDC_CONSUMER_SECRET"
-
-${chalk.greenBright(`If you want to enable login with Google, you will need to create a project in the Google Developer Console`)}
-${chalk.greenBright(`And populate these values:`)}
+${chalk.greenBright(`Google login (optional):`)}
 AUTH_GOOGLE_CLIENT_ID
 AUTH_GOOGLE_CLIENT_SECRET
 `),
 );
 
-fs.writeFileSync(outputFilename, newEnvFile);
+fs.writeFileSync(outputFilename, finalEnvFile);

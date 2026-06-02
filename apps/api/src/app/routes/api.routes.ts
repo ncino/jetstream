@@ -7,6 +7,7 @@ import { routeDefinition as dataSyncController } from '../controllers/data-sync.
 import { routeDefinition as orgGroupController } from '../controllers/org-groups.controller';
 import { routeDefinition as orgsController } from '../controllers/orgs.controller';
 import { routeDefinition as salesforceApiReqController } from '../controllers/salesforce-api-requests.controller';
+import { routeDefinition as salesforceEcaController } from '../controllers/salesforce-eca.controller';
 import { routeDefinition as bulkApiController } from '../controllers/sf-bulk-api.controller';
 import { routeDefinition as bulkQuery20ApiController } from '../controllers/sf-bulk-query-20-api.controller';
 import { routeDefinition as metadataToolingController } from '../controllers/sf-metadata-tooling.controller';
@@ -210,6 +211,13 @@ routes.delete('/bulk-query/:jobId', dfr, bulkQuery20ApiController.deleteJob.cont
  * ************************************
  */
 routes.get('/salesforce-api/requests', salesforceApiReqController.getSalesforceApiRequests.controllerFn());
+
+/**
+ * ************************************
+ * salesforceEcaController Routes
+ * ************************************
+ */
+routes.get('/salesforce/ecas', salesforceEcaController.listEcas.controllerFn());
 
 /**
  * ************************************
