@@ -107,6 +107,25 @@ docker compose up
 - If assets on the page don't load, do a hard refresh (hold cmd or shift and press refresh)
   - This might happen if you have re-built the image and the browser has cached the page with now missing resources.
 
+#### Wiping the install to start fresh
+
+If you want to completely reset your local Docker setup (for example, the database is in a bad state or you want to re-run setup from scratch), run the following from the project root:
+
+```shell
+# Stop the containers and delete the Postgres volume (this erases all local data)
+docker compose down -v
+
+# Remove the built application image so the next run rebuilds from scratch
+docker image rm jetstream-app
+
+# Optional: remove your local credentials so setup re-prompts for them
+rm .env
+```
+
+Then rebuild and start as described above (`docker build -t jetstream-app .` followed by `docker compose up`). The `-v` flag is the important part — without it the seeded Postgres data persists in the `pgdata` volume and a "fresh" start will reuse the old database.
+
+> Podman users: substitute `podman` for `docker` in the commands above (e.g. `podman compose down -v`).
+
 ### Running without Docker
 
 Use this option if you want to contribute to the codebase.
